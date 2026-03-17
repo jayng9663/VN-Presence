@@ -1,7 +1,6 @@
 [![Github Repo](https://img.shields.io/badge/github-repo-blue?logo=github)](https://github.com/jayng9663/VN-Presence)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C?logo=cplusplus)](https://en.cppreference.com/w/cpp/23)
-[![Version](https://img.shields.io/badge/version-1.0.0-green)](https://github.com/jayng9663/VN-Presence/releases)
 
 # VN-Presence
 
