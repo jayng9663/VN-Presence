@@ -7,8 +7,6 @@
 #include <discord-rpc.hpp>
 
 #include <chrono>
-#include <filesystem>
-#include <fstream>
 #include <mutex>
 #include <string>
 
@@ -37,45 +35,6 @@ static std::string      s_lastTitle;        // track title changes to reset star
 
 // Track whether anything is currently shown in Discord
 static bool             s_hasPresence     = false;
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Persistent start timestamp — stored in ~/.config/vn-discord-rpc/timestamps/
-// so Discord reconnects don't reset the elapsed counter.
-// ─────────────────────────────────────────────────────────────────────────────
-static std::filesystem::path tsDir() {
-	const char* xdg  = std::getenv("XDG_CONFIG_HOME");
-	const char* home = std::getenv("HOME");
-	std::filesystem::path base = xdg
-		? std::filesystem::path(xdg)
-		: std::filesystem::path(home ? home : "") / ".config";
-	return base / "vn-discord-rpc" / "timestamps";
-}
-
-static std::filesystem::path tsFile(const std::string& key) {
-	// key is expected to be a VNDB id like "v67" — already safe ASCII
-	// Sanitise just in case
-	std::string safe;
-	for (unsigned char c : key)
-		safe += (std::isalnum(c) || c == '-') ? (char)c : '_';
-	if (safe.empty()) safe = "unknown";
-	return tsDir() / (safe + ".ts");
-}
-
-static int64_t loadPersistedTs(const std::string& title) {
-	std::ifstream f(tsFile(title));
-	if (!f) return 0;
-	int64_t ts = 0;
-	f >> ts;
-	return ts;
-}
-
-static void persistTs(const std::string& title, int64_t ts) {
-	std::error_code ec;
-	std::filesystem::create_directories(tsDir(), ec);
-	std::ofstream f(tsFile(title));
-	if (f) f << ts;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers (all must be called with s_mutex held)
@@ -271,30 +230,20 @@ void RpcManager::setPresence(const VnInfo& vn, const std::string& source)
 			LOG_DEBUG("Lutris playtime: " << LutrisDB::formatPlaytime(*pt));
 	}
 
-	// Resolve startTs — priority:
-	//   1. Already have one for this title (reconnect) → keep it
-	//   2. Persisted file exists → reload it
-	//   3. Playtime available → now - playtime
-	//   4. Fallback → now
+	// Resolve startTs:
+	//   1. Same title still active in memory → keep existing timestamp
+	//   2. Playtime available → now - playtime
+	//   3. Fallback → now
 	int64_t startTs;
 	if (vn.id == s_lastTitle && s_startTimestamp != 0) {
 		startTs = s_startTimestamp;
-		LOG_DEBUG("Reusing existing start_ts=" << startTs << " after reconnect");
+		LOG_DEBUG("Reusing existing start_ts=" << startTs);
+	} else if (playtimeSeconds && *playtimeSeconds > 0) {
+		startTs = wallSeconds() - *playtimeSeconds;
+		LOG_DEBUG("Playtime start_ts=" << startTs);
 	} else {
-		int64_t persisted = loadPersistedTs(vn.id);
-		if (persisted > 0) {
-			startTs = persisted;
-			LOG_DEBUG("Loaded persisted start_ts=" << startTs
-					<< " for \"" << displayTitle << "\"");
-		} else if (playtimeSeconds && *playtimeSeconds > 0) {
-			startTs = wallSeconds() - *playtimeSeconds;
-			persistTs(vn.id, startTs);
-			LOG_DEBUG("Playtime start_ts=" << startTs << " (persisted)");
-		} else {
-			startTs = wallSeconds();
-			persistTs(vn.id, startTs);
-			LOG_DEBUG("New start_ts=" << startTs << " (persisted)");
-		}
+		startTs = wallSeconds();
+		LOG_DEBUG("New start_ts=" << startTs);
 	}
 
 	std::lock_guard<std::mutex> lock(s_mutex);
@@ -383,8 +332,6 @@ void RpcManager::clearPresence()
 	}
 
 	s_pendingUpdate = false;  // discard any queued update
-									  // Do NOT delete the persisted timestamp — keep it so the next launch
-									  // reloads it and the Discord timer continues from where it was.
 	s_lastTitle.clear();
 
 	if (rateLimitRemaining() == 0) {
