@@ -29,7 +29,6 @@ Discord Rich Presence daemon for Visual Novels on Linux. Detects games launched 
 - Suppresses explicit cover images (sexual ≥ 1.80 or violence ≥ 1.80) — title still shows
 - Playtime from **Lutris DB** (`pga.db`) or **Steam VDF** (`localconfig.vdf`) — no API key needed
 - Discord elapsed timer reflects **total hours played**, not just this session
-- Persistent timestamps survive Discord reconnects
 - Editable `cache.csv` for aliases, hard-links, and SKIP entries — reloaded live while running
 - `ignore.txt` with exact-match for short entries (< 4 chars) to prevent false positives like `sh`
 
@@ -97,11 +96,8 @@ flowchart TD
     LDB --> PT[playtime in seconds]
     VDF --> PT
     PT --> TS[start_ts = now − playtime]
-    TS --> PERSIST[Persist to\n~/.config/vn-discord-rpc/timestamps/]
-    PERSIST --> DISC[Discord: elapsed timer\ncounts up from start_ts]
+    TS --> DISC[Discord: elapsed timer\ncounts up from start_ts]
 ```
-
-The timestamp is persisted to disk so a Discord reconnect does not reset the timer. On the next startup or reconnect, the file is reloaded and the counter continues from where it was.
 
 ---
 
@@ -224,6 +220,5 @@ Launch a game through **Lutris** or **Steam**, and the daemon will detect it aut
 |---|---|
 | Cache | `~/.config/vn-discord-rpc/cache.csv` |
 | Ignore list | `~/.config/vn-discord-rpc/ignore.txt` |
-| Timestamps | `~/.config/vn-discord-rpc/timestamps/` |
 | Lutris DB | `~/.local/share/lutris/pga.db` |
 | Steam VDF | `~/.local/share/Steam/userdata/<id>/config/localconfig.vdf` |
