@@ -27,10 +27,10 @@ struct VnInfo {
 
 	/**
 	 * Return true when the cover image should be suppressed in Discord
-	 * (sexual >= 2 or violence >= 2).
+	 * (sexual >= 1.80 or violence >= 1.80).
 	 **/
 	[[nodiscard]] bool isImageExplicit() const noexcept {
-		return image_sexual >= 2.0 || image_violence >= 2.0;
+		return image_sexual >= 1.80 || image_violence >= 1.80;
 	}
 };
 
