@@ -1,0 +1,68 @@
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+install_manifest.txt
+
+# CMake presets
+CMakeUserPresets.json
+
+# Sourcetrail
+*.srctrlbm
+*.srctrldb
+
+# Build directories
+build/
+build-*/
+out/
+out-*/
+cmake-build-*/
+*/cmake-build-*/
+
+# Ninja / Make
+.ninja_deps
+.ninja_log
+build.ninja
+Makefile
+
+# Compiled objects
+*.o
+*.obj
+*.lo
+*.la
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# Debug / profiling
+*.pdb
+*.idb
+*.ilk
+*.gcno
+*.gcda
+*.prof
+gmon.out
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Clang / GCC
+*.d
+.cache/
+.clangd/
+.clangd
+
+backup/
