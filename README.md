@@ -153,13 +153,13 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 ## Configuration (`src/config.hpp`)
 
 > [!CAUTION]
-> Do not change the `isImageExplicit()` threshold in `vndb_client.hpp`.
-> The threshold is set to `> 1.80` (slightly below VNDB's **Explicit** level of `2.0`)
+> Be caution on changing `IMAGE_SEXUAL` and `IMAGE_VIOLENCE` thresholds in `src/config.hpp`.
+> Those thresholds are set to `1.80` (slightly below VNDB's **Explicit** level of `2.00`)
 > because VNDB image ratings are user-reported and may be underrated by a small margin —
 > the 0.20 buffer ensures borderline explicit covers are still suppressed.
-> Raising the threshold above `2.0` would cause explicit (pornographic) cover art to appear
+> Raising the threshold above `2.00` would cause explicit (pornographic) cover art to appear
 > in your Discord status, visible to everyone on your friends list. Displaying explicit
-> content in Discord Rich Presence violates [Discord's Terms of Service](https://discord.com/terms)
+> content in Discord Rich Presence may violates [Discord's Terms of Service](https://discord.com/terms)
 > and **may result in a permanent account ban**.
 
 | Constant | Default | Description |
