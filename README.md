@@ -2,6 +2,18 @@
 
 Discord Rich Presence daemon for Visual Novels on Linux. Detects games launched via **Lutris** or **Steam**, looks them up on [VNDB](https://vndb.org), and shows the title, cover art, and total playtime in your Discord status.
 
+### Voice channel
+
+| With cover art | Cover suppressed (explicit) |
+|:---:|:---:|
+| ![Voice channel presence with cover](docs/voice_with_cover.png) | ![Voice channel presence without cover](docs/voice_no_cover.png) |
+
+### User activity
+
+| With cover art | Cover suppressed (explicit) |
+|:---:|:---:|
+| ![User activity with cover](docs/activity_with_cover.png) | ![User activity without cover](docs/activity_no_cover.png) |
+
 ---
 
 ## Features
