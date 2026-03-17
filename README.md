@@ -21,7 +21,7 @@ Discord Rich Presence daemon for Visual Novels on Linux. Detects games launched 
 - Detects games from **Lutris** (exact name from wrapper) and **Steam** (AppID → ACF → store name)
 - Fuzzy title matching against VNDB using trigram similarity + full-width character normalisation
 - Fallback: searches the **release** endpoint and follows the relation back to the parent VN
-- Suppresses explicit cover images (sexual ≥ 2 or violence ≥ 2) — title still shows
+- Suppresses explicit cover images (sexual ≥ 1.80 or violence ≥ 1.80) — title still shows
 - Playtime from **Lutris DB** (`pga.db`) or **Steam VDF** (`localconfig.vdf`) — no API key needed
 - Discord elapsed timer reflects **total hours played**, not just this session
 - Persistent timestamps survive Discord reconnects
