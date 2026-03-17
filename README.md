@@ -1,4 +1,4 @@
-# vn-discord-rpc
+# VN-Presence
 
 Discord Rich Presence daemon for Visual Novels on Linux. Detects games launched via **Lutris** or **Steam**, looks them up on [VNDB](https://vndb.org), and shows the title, cover art, and total playtime in your Discord status.
 
