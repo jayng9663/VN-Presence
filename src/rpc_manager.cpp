@@ -318,6 +318,12 @@ void RpcManager::setGenericPresence(const std::string& windowTitle)
 	pushOrDefer();
 }
 
+// ─── hasPending ───
+bool RpcManager::hasPending() const {
+	std::lock_guard<std::mutex> lock(s_mutex);
+	return s_pendingUpdate || s_pendingClear;
+}
+
 // ─── clearPresence ───
 /** Clear the Discord presence (deferred if within rate-limit window). **/
 void RpcManager::clearPresence()
