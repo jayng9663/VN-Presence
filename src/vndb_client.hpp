@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <chrono>
 
+#include <config.hpp>
+
 /**
  * Metadata for a single visual novel returned by the VNDB API.
  * All string fields may be empty if the API did not return that field.
@@ -27,10 +29,9 @@ struct VnInfo {
 
 	/**
 	 * Return true when the cover image should be suppressed in Discord
-	 * (sexual >= 1.80 or violence >= 1.80).
 	 **/
 	[[nodiscard]] bool isImageExplicit() const noexcept {
-		return image_sexual >= 1.80 || image_violence >= 1.80;
+		return image_sexual >= config::IMAGE_SEXUAL || image_violence >= config::IMAGE_VIOLENCE;
 	}
 };
 

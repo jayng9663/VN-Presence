@@ -89,6 +89,9 @@ class VnCache {
 		/** Return the default cache file path. **/
 		static std::filesystem::path defaultPath();
 
+		/** Return the default SQLite DB path. **/
+		static std::filesystem::path defaultDbPath();
+
 	private:
 		std::filesystem::path                       path_;
 		std::unordered_map<std::string, CacheEntry> entries_;

@@ -73,6 +73,13 @@ public:
 	 **/
 	void runCallbacks();
 
+	/**
+	 * Return true when a deferred update or clear is still waiting to be
+	 * flushed.  Used by the shutdown loop to know when it is safe to call
+	 * disconnect().
+	 **/
+	[[nodiscard]] bool hasPending() const;
+
 private:
 	struct Impl;
 	Impl* d;

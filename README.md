@@ -100,9 +100,9 @@ flowchart TD
 
 ---
 
-### Cache file (`cache.csv`)
+### Cache file (`cache.csv` / `cache.db`)
 
-Located at `~/.config/vn-discord-rpc/cache.csv`. Reloaded automatically whenever the file changes on disk.
+Located at `~/.config/vn-discord-rpc/cache.csv` (default) or `cache.db` when `CACHE_USE_DB = true`. Reloaded automatically whenever the file changes on disk.
 
 | Column | Purpose |
 |---|---|
@@ -153,22 +153,25 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 ## Configuration (`src/config.hpp`)
 
 > [!CAUTION]
-> Do not change the `isImageExplicit()` threshold in `vndb_client.hpp`.
-> The threshold is set to `> 1.80` (slightly below VNDB's **Explicit** level of `2.0`)
+> Be caution on changing `IMAGE_SEXUAL` and `IMAGE_VIOLENCE` thresholds in `src/config.hpp`.
+> Those thresholds are set to `1.80` (slightly below VNDB's **Explicit** level of `2.00`)
 > because VNDB image ratings are user-reported and may be underrated by a small margin —
 > the 0.20 buffer ensures borderline explicit covers are still suppressed.
-> Raising the threshold above `2.0` would cause explicit (pornographic) cover art to appear
+> Raising the threshold above `2.00` would cause explicit (pornographic) cover art to appear
 > in your Discord status, visible to everyone on your friends list. Displaying explicit
-> content in Discord Rich Presence violates [Discord's Terms of Service](https://discord.com/terms)
+> content in Discord Rich Presence may violates [Discord's Terms of Service](https://discord.com/terms)
 > and **may result in a permanent account ban**.
 
 | Constant | Default | Description |
 |---|---|---|
 | `DISCORD_APP_ID` | `1482345564698841189` | Discord application ID |
+| `IMAGE_SEXUAL` | `1.80` | Maximum threshold value for sexual before being supperessd |
+| `IMAGE_VIOLENCE` | `1.80` | Maximum threshold value for violence before being supperessd |
 | `VNDB_MIN_SIMILARITY` | `0.35` | Minimum trigram score to accept a match |
 | `POLL_INTERVAL` | `5s` | How often to scan for running processes |
-| `VNDB_CACHE_TTL` | `30min` | In-memory VNDB result cache lifetime |
+| `VNDB_CACHE_TTL` | `24hours` | In-memory VNDB result cache lifetime |
 | `STABLE_TITLE_POLLS` | `2` | Polls a title must be stable before acting |
+| `CACHE_USE_DB` | `false` | **[Experimental]** Use SQLite (`cache.db`) instead of CSV (`cache.csv`) |
 
 ---
 
@@ -217,7 +220,8 @@ Launch a game through **Lutris** or **Steam**, and the daemon will detect it aut
 
 | File | Path |
 |---|---|
-| Cache | `~/.config/vn-discord-rpc/cache.csv` |
+| Cache (CSV) | `~/.config/vn-discord-rpc/cache.csv` |
+| Cache (SQLite, experimental) | `~/.config/vn-discord-rpc/cache.db` |
 | Ignore list | `~/.config/vn-discord-rpc/ignore.txt` |
 | Lutris DB | `~/.local/share/lutris/pga.db` |
 | Steam VDF | `~/.local/share/Steam/userdata/<id>/config/localconfig.vdf` |

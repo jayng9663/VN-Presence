@@ -1,6 +1,8 @@
 #include "logger.hpp"
 #include "vn_cache.hpp"
+#include "config.hpp"
 
+#include <sqlite3.h>
 #include <chrono>
 #include <cstring>
 #include <fstream>
@@ -41,7 +43,10 @@ VnInfo CacheEntry::toVnInfo() const {
 VnCache::VnCache(std::filesystem::path path) : path_(std::move(path)) {
 	std::error_code ec;
 	std::filesystem::create_directories(path_.parent_path(), ec);
-	LOG_DEBUG("Cache path: " << path_.string());
+	if (config::CACHE_USE_DB)
+		LOG_DEBUG("Cache backend: SQLite  path=" << defaultDbPath().string());
+	else
+		LOG_DEBUG("Cache backend: CSV  path=" << path_.string());
 	reload();
 }
 
@@ -53,9 +58,124 @@ std::filesystem::path VnCache::defaultPath() {
 	return base / "vn-discord-rpc" / "cache.csv";
 }
 
+std::filesystem::path VnCache::defaultDbPath() {
+	const char* xdg = std::getenv("XDG_CONFIG_HOME");
+	const char* home = std::getenv("HOME");
+	std::filesystem::path base = xdg ? std::filesystem::path(xdg)
+		: (std::filesystem::path(home ? home : "") / ".config");
+	return base / "vn-discord-rpc" / "cache.db";
+}
+
+// ── SQLite helpers ──
+namespace {
+
+	static const char* DB_SCHEMA = R"(
+CREATE TABLE IF NOT EXISTS cache (
+    key            TEXT PRIMARY KEY,
+    alias          TEXT DEFAULT '',
+    vndb_id        TEXT DEFAULT '',
+    title          TEXT DEFAULT '',
+    alt_title      TEXT DEFAULT '',
+    image_url      TEXT DEFAULT '',
+    image_sexual   REAL DEFAULT 0,
+    image_violence REAL DEFAULT 0,
+    rating         REAL DEFAULT 0,
+    released       TEXT DEFAULT '',
+    cached_at      INTEGER DEFAULT 0
+);
+)";
+
+	void dbEnsureSchema(sqlite3* db) {
+		char* err = nullptr;
+		sqlite3_exec(db, DB_SCHEMA, nullptr, nullptr, &err);
+		if (err) { LOG_ERR("SQLite schema error: " << err); sqlite3_free(err); }
+	}
+
+	sqlite3* dbOpen(const std::filesystem::path& path) {
+		sqlite3* db = nullptr;
+		if (sqlite3_open(path.c_str(), &db) != SQLITE_OK) {
+			LOG_ERR("Cannot open SQLite cache: " << sqlite3_errmsg(db));
+			sqlite3_close(db);
+			return nullptr;
+		}
+		dbEnsureSchema(db);
+		return db;
+	}
+
+	// Read all rows from DB into the entries map
+	void dbLoad(sqlite3* db, std::unordered_map<std::string, CacheEntry>& entries) {
+		const char* sql = "SELECT key,alias,vndb_id,title,alt_title,image_url,"
+			"image_sexual,image_violence,rating,released,cached_at FROM cache";
+		sqlite3_stmt* stmt = nullptr;
+		if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return;
+		entries.clear();
+		while (sqlite3_step(stmt) == SQLITE_ROW) {
+			auto col = [&](int i) -> std::string {
+				auto* t = reinterpret_cast<const char*>(sqlite3_column_text(stmt, i));
+				return t ? t : "";
+			};
+			CacheEntry e;
+			e.key            = col(0);
+			e.alias          = col(1);
+			e.vndb_id        = col(2);
+			e.title          = col(3);
+			e.alt_title      = col(4);
+			e.image_url      = col(5);
+			e.image_sexual   = sqlite3_column_double(stmt, 6);
+			e.image_violence = sqlite3_column_double(stmt, 7);
+			e.rating         = sqlite3_column_double(stmt, 8);
+			e.released       = col(9);
+			e.cached_at      = sqlite3_column_int64(stmt, 10);
+			if (!e.key.empty()) entries[e.key] = std::move(e);
+		}
+		sqlite3_finalize(stmt);
+	}
+
+	// Upsert one entry
+	void dbUpsert(sqlite3* db, const CacheEntry& e) {
+		const char* sql = R"(
+INSERT INTO cache(key,alias,vndb_id,title,alt_title,image_url,
+                  image_sexual,image_violence,rating,released,cached_at)
+VALUES(?,?,?,?,?,?,?,?,?,?,?)
+ON CONFLICT(key) DO UPDATE SET
+  alias=excluded.alias, vndb_id=excluded.vndb_id, title=excluded.title,
+  alt_title=excluded.alt_title, image_url=excluded.image_url,
+  image_sexual=excluded.image_sexual, image_violence=excluded.image_violence,
+  rating=excluded.rating, released=excluded.released, cached_at=excluded.cached_at;
+)";
+		sqlite3_stmt* stmt = nullptr;
+		if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+			LOG_ERR("SQLite upsert prepare: " << sqlite3_errmsg(db)); return;
+		}
+		auto bind = [&](int i, const std::string& s) {
+			sqlite3_bind_text(stmt, i, s.c_str(), -1, SQLITE_TRANSIENT);
+		};
+		bind(1, e.key);  bind(2, e.alias);    bind(3, e.vndb_id);
+		bind(4, e.title); bind(5, e.alt_title); bind(6, e.image_url);
+		sqlite3_bind_double(stmt, 7, e.image_sexual);
+		sqlite3_bind_double(stmt, 8, e.image_violence);
+		sqlite3_bind_double(stmt, 9, e.rating);
+		bind(10, e.released);
+		sqlite3_bind_int64(stmt, 11, e.cached_at);
+		sqlite3_step(stmt);
+		sqlite3_finalize(stmt);
+	}
+
+} // anonymous namespace
+
 // ── reload — re-read the CSV if it has changed on disk ──
 /** Re-read the CSV from disk if its mtime has changed. **/
 void VnCache::reload() {
+	if (config::CACHE_USE_DB) {
+		// SQLite handles its own consistency — just re-read every time
+		sqlite3* db = dbOpen(defaultDbPath());
+		if (!db) return;
+		dbLoad(db, entries_);
+		sqlite3_close(db);
+		LOG_DEBUG("SQLite cache reloaded: " << entries_.size() << " entries");
+		return;
+	}
+
 	std::error_code ec;
 	if (!std::filesystem::exists(path_, ec)) return;
 
@@ -194,6 +314,17 @@ std::string VnCache::serialise(const CacheEntry& e) {
 // ── save ──
 /** Write all cache entries to disk with a UTF-8 BOM for spreadsheet compat. **/
 void VnCache::save() const {
+	if (config::CACHE_USE_DB) {
+		sqlite3* db = dbOpen(defaultDbPath());
+		if (!db) return;
+		sqlite3_exec(db, "BEGIN", nullptr, nullptr, nullptr);
+		for (const auto& [key, e] : entries_) dbUpsert(db, e);
+		sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
+		sqlite3_close(db);
+		LOG_DEBUG("SQLite cache saved: " << entries_.size() << " entries");
+		return;
+	}
+
 	std::error_code ec;
 	std::filesystem::create_directories(path_.parent_path(), ec);
 

@@ -29,6 +29,10 @@ namespace config {
 	/** Maximum number of VNDB results returned per search (we only use index 0). **/
 	inline constexpr int VNDB_MAX_RESULTS = 1;
 
+	/** Maximum value for sexual or violence before being supperessd **/
+	inline constexpr double IMAGE_SEXUAL   = 1.80;
+	inline constexpr double IMAGE_VIOLENCE = 1.80;
+
 	/** Minimum trigram-similarity score (0.0–1.0) needed to accept a VNDB result.
 	 * Lower = more permissive, higher = stricter.
 	 **/
@@ -38,7 +42,7 @@ namespace config {
 	inline constexpr std::chrono::seconds POLL_INTERVAL{5};
 
 	/** How long to cache an in-memory VNDB result before re-querying. **/
-	inline constexpr std::chrono::minutes VNDB_CACHE_TTL{30};
+	inline constexpr std::chrono::hours VNDB_CACHE_TTL{24};
 
 	/** Number of consecutive polls a title must be stable before acting on it. **/
 	inline constexpr int STABLE_TITLE_POLLS = 2;
@@ -57,5 +61,11 @@ namespace config {
 
 	/** Details line shown when no VNDB title is matched. **/
 	inline constexpr std::string_view RPC_DEFAULT_DETAILS = "Playing a Visual Novel";
+
+	/** Use SQLite instead of CSV for the persistent cache.
+	 * true  → ~/.config/vn-discord-rpc/cache.db  (SQLite) !! Experimental !!
+	 * false → ~/.config/vn-discord-rpc/cache.csv (default)
+	 **/
+	inline constexpr bool CACHE_USE_DB = false;
 
 } // namespace config
