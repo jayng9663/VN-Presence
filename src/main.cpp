@@ -35,7 +35,7 @@ static void printBanner()
 {
 	std::cout << R"(
   ╭──────────────────────────────────────╮
-  │        vn-discord-rpc  v1.0.0        │
+  │        vn-discord-rpc  v1.0.1        │
   │  Visual Novel Discord Rich Presence  │
   ╰──────────────────────────────────────╯
 )" << std::flush;
