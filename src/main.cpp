@@ -92,7 +92,9 @@ int main(int argc, char* argv[])
 	printBanner();
 	LOG_INFO("Poll interval : " << config::POLL_INTERVAL.count() << "s  (process scan)");
 	LOG_INFO("RPC interval  : 15s (Discord rate limit)");
-	LOG_INFO("Cache file    : " << VnCache::defaultPath().string());
+	LOG_INFO("Cache file    : " << (config::CACHE_USE_DB
+		? VnCache::defaultDbPath().string()
+		: VnCache::defaultPath().string()));
 	LOG_INFO("Ignore list   : " << IgnoreList::defaultPath().string());
 	LOG_INFO("Log level     : " << (verbose ? "DEBUG" : "INFO"));
 
