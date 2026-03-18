@@ -62,4 +62,10 @@ namespace config {
 	/** Details line shown when no VNDB title is matched. **/
 	inline constexpr std::string_view RPC_DEFAULT_DETAILS = "Playing a Visual Novel";
 
+	/** Use SQLite instead of CSV for the persistent cache.
+	 * true  → ~/.config/vn-discord-rpc/cache.db  (SQLite) !! Experimental !!
+	 * false → ~/.config/vn-discord-rpc/cache.csv (default)
+	 **/
+	inline constexpr bool CACHE_USE_DB = false;
+
 } // namespace config
