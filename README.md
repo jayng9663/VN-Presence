@@ -165,6 +165,8 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 | Constant | Default | Description |
 |---|---|---|
 | `DISCORD_APP_ID` | `1482345564698841189` | Discord application ID |
+| `IMAGE_SEXUAL` | `1.80` | Maximum threshold value for sexual before being supperessd |
+| `IMAGE_VIOLENCE` | `1.80` | Maximum threshold value for violence before being supperessd |
 | `VNDB_MIN_SIMILARITY` | `0.35` | Minimum trigram score to accept a match |
 | `POLL_INTERVAL` | `5s` | How often to scan for running processes |
 | `VNDB_CACHE_TTL` | `24hours` | In-memory VNDB result cache lifetime |
