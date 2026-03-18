@@ -242,6 +242,7 @@ int main(int argc, char* argv[])
 	auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(17);
 	while (std::chrono::steady_clock::now() < deadline) {
 		rpc.runCallbacks();
+		if (!rpc.hasPending()) break;
 		std::this_thread::sleep_for(std::chrono::milliseconds(200));
 	}
 	rpc.disconnect();
