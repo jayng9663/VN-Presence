@@ -100,9 +100,9 @@ flowchart TD
 
 ---
 
-### Cache file (`cache.csv`)
+### Cache file (`cache.csv` / `cache.db`)
 
-Located at `~/.config/vn-discord-rpc/cache.csv`. Reloaded automatically whenever the file changes on disk.
+Located at `~/.config/vn-discord-rpc/cache.csv` (default) or `cache.db` when `CACHE_USE_DB = true`. Reloaded automatically whenever the file changes on disk.
 
 | Column | Purpose |
 |---|---|
@@ -171,6 +171,7 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 | `POLL_INTERVAL` | `5s` | How often to scan for running processes |
 | `VNDB_CACHE_TTL` | `24hours` | In-memory VNDB result cache lifetime |
 | `STABLE_TITLE_POLLS` | `2` | Polls a title must be stable before acting |
+| `CACHE_USE_DB` | `false` | **[Experimental]** Use SQLite (`cache.db`) instead of CSV (`cache.csv`) |
 
 ---
 
@@ -219,7 +220,8 @@ Launch a game through **Lutris** or **Steam**, and the daemon will detect it aut
 
 | File | Path |
 |---|---|
-| Cache | `~/.config/vn-discord-rpc/cache.csv` |
+| Cache (CSV) | `~/.config/vn-discord-rpc/cache.csv` |
+| Cache (SQLite, experimental) | `~/.config/vn-discord-rpc/cache.db` |
 | Ignore list | `~/.config/vn-discord-rpc/ignore.txt` |
 | Lutris DB | `~/.local/share/lutris/pga.db` |
 | Steam VDF | `~/.local/share/Steam/userdata/<id>/config/localconfig.vdf` |
