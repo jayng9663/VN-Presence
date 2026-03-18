@@ -50,6 +50,7 @@ Makefile
 *.gcda
 *.prof
 gmon.out
+.vimspector.json
 
 # IDE / editor
 .vscode/
