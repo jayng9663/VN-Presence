@@ -16,6 +16,12 @@
 static std::atomic<bool> g_running{true};
 static void signalHandler(int) { g_running = false; }
 
+static void sleepInterruptible(std::chrono::seconds d) {
+	auto end = std::chrono::steady_clock::now() + d;
+	while (g_running && std::chrono::steady_clock::now() < end)
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+}
+
 struct AppState {
 	std::string lastSearchTitle;
 	std::string candidateTitle;
@@ -105,7 +111,7 @@ int main(int argc, char* argv[])
 	while (g_running) {
 		if (!rpc.isConnected()) {
 			if (!rpc.connect())
-				std::this_thread::sleep_for(std::chrono::seconds(5));
+				sleepInterruptible(std::chrono::seconds(5));
 		}
 		rpc.runCallbacks();
 
@@ -121,7 +127,7 @@ int main(int argc, char* argv[])
 				state.stablePollCount = 0;
 				LOG_INFO("VN no longer running — presence cleared");
 			}
-			std::this_thread::sleep_for(config::POLL_INTERVAL);
+			sleepInterruptible(config::POLL_INTERVAL);
 			continue;
 		}
 
@@ -131,19 +137,19 @@ int main(int argc, char* argv[])
 			state.stablePollCount = 1;
 			LOG_DEBUG("Debounce candidate (1/" << config::STABLE_TITLE_POLLS
 			<< "): \"" << searchTitle << "\"");
-			std::this_thread::sleep_for(config::POLL_INTERVAL);
+			sleepInterruptible(config::POLL_INTERVAL);
 			continue;
 		}
 		if (++state.stablePollCount < config::STABLE_TITLE_POLLS) {
 			LOG_DEBUG("Debounce " << state.stablePollCount
 			<< "/" << config::STABLE_TITLE_POLLS);
-			std::this_thread::sleep_for(config::POLL_INTERVAL);
+			sleepInterruptible(config::POLL_INTERVAL);
 			continue;
 		}
 
 		// ── Same as currently shown ──
 		if (searchTitle == state.lastSearchTitle) {
-			std::this_thread::sleep_for(config::POLL_INTERVAL);
+			sleepInterruptible(config::POLL_INTERVAL);
 			continue;
 		}
 
@@ -152,7 +158,7 @@ int main(int argc, char* argv[])
 			LOG_INFO("Ignored: \"" << searchTitle << "\"");
 			if (state.hasPresence) { rpc.clearPresence(); state.hasPresence = false; }
 			state.lastSearchTitle = searchTitle;
-			std::this_thread::sleep_for(config::POLL_INTERVAL);
+			sleepInterruptible(config::POLL_INTERVAL);
 			continue;
 		}
 
@@ -166,7 +172,7 @@ int main(int argc, char* argv[])
 				LOG_INFO("SKIP entry for \"" << searchTitle << "\"");
 				if (state.hasPresence) { rpc.clearPresence(); state.hasPresence = false; }
 				state.lastSearchTitle = searchTitle;
-				std::this_thread::sleep_for(config::POLL_INTERVAL);
+				sleepInterruptible(config::POLL_INTERVAL);
 				continue;
 
 			} else if (!cached->alias.empty()) {
@@ -228,11 +234,16 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		std::this_thread::sleep_for(config::POLL_INTERVAL);
+		sleepInterruptible(config::POLL_INTERVAL);
 	}
 
 	LOG_INFO("Shutting down");
 	rpc.clearPresence();
+	auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(17);
+	while (std::chrono::steady_clock::now() < deadline) {
+		rpc.runCallbacks();
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+	}
 	rpc.disconnect();
 	return 0;
 }
