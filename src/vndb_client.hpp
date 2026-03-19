@@ -26,12 +26,13 @@ struct VnInfo {
 	 **/
 	double image_sexual   = 0.0;  ///< Sexual content rating
 	double image_violence = 0.0;  ///< Violence content rating
+	int    image_votecount  = 0;  ///< VNDB Vote Count
 
 	/**
 	 * Return true when the cover image should be suppressed in Discord
 	 **/
 	[[nodiscard]] bool isImageExplicit() const noexcept {
-		return image_sexual >= config::IMAGE_SEXUAL || image_violence >= config::IMAGE_VIOLENCE;
+		return image_sexual >= config::IMAGE_SEXUAL || image_violence >= config::IMAGE_VIOLENCE || image_votecount >= config::IMAGE_VOTECOUNT;
 	}
 };
 

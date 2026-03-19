@@ -256,12 +256,13 @@ std::optional<VnInfo> VndbClient::parseResponse(const std::string& jsonStr,
 		const auto& img = first["image"];
 		info.image_sexual   = safeDouble(img, "sexual",   0.0);
 		info.image_violence = safeDouble(img, "violence", 0.0);
+		info.image_votecount = safeInt(img, "votecount", 0);
 		if (!info.isImageExplicit())
 			info.image_url = safeStr(img, "url");
 		else
 			LOG_INFO("All covers explicit (sexual=" << info.image_sexual
 					<< " violence=" << info.image_violence
-					<< ") — cover suppressed, RPC will still show");
+					<< " votecount=" << info.image_votecount << ") — cover suppressed, RPC will still show");
 	}
 
 	info.rating         = safeDouble(first, "rating",         0.0);
@@ -429,11 +430,13 @@ std::optional<VnInfo> VndbClient::fetchById(const std::string& vnId)
 		const auto& img = first["image"];
 		info.image_sexual   = safeDouble(img, "sexual",   0.0);
 		info.image_violence = safeDouble(img, "violence", 0.0);
+		info.image_votecount = safeInt(img, "votecount", 0);
 		if (!info.isImageExplicit())
 			info.image_url = safeStr(img, "url");
 		else
 			LOG_INFO("Cover suppressed (sexual=" << info.image_sexual
-					<< " violence=" << info.image_violence << ")");
+					<< " violence=" << info.image_violence 
+					<< " votecount=" << info.image_votecount << ")");
 	}
 
 	info.rating         = safeDouble(first, "rating",         0.0);
