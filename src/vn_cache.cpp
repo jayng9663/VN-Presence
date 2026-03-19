@@ -33,6 +33,7 @@ VnInfo CacheEntry::toVnInfo() const {
 	v.image_url      = image_url;
 	v.image_sexual   = image_sexual;
 	v.image_violence = image_violence;
+	v.image_votecount = image_votecount;
 	v.rating         = rating;
 	v.released       = released;
 	v.vndb_url       = "https://vndb.org/" + vndb_id;
@@ -79,6 +80,7 @@ CREATE TABLE IF NOT EXISTS cache (
     image_url      TEXT DEFAULT '',
     image_sexual   REAL DEFAULT 0,
     image_violence REAL DEFAULT 0,
+	image_votecount REAL DEFAULT 0,
     rating         REAL DEFAULT 0,
     released       TEXT DEFAULT '',
     cached_at      INTEGER DEFAULT 0
@@ -123,9 +125,10 @@ CREATE TABLE IF NOT EXISTS cache (
 			e.image_url      = col(5);
 			e.image_sexual   = sqlite3_column_double(stmt, 6);
 			e.image_violence = sqlite3_column_double(stmt, 7);
-			e.rating         = sqlite3_column_double(stmt, 8);
-			e.released       = col(9);
-			e.cached_at      = sqlite3_column_int64(stmt, 10);
+			e.image_votecount = sqlite3_column_int(stmt, 8);
+			e.rating         = sqlite3_column_double(stmt, 9);
+			e.released       = col(8);
+			e.cached_at      = sqlite3_column_int64(stmt, 11);
 			if (!e.key.empty()) entries[e.key] = std::move(e);
 		}
 		sqlite3_finalize(stmt);
@@ -135,13 +138,15 @@ CREATE TABLE IF NOT EXISTS cache (
 	void dbUpsert(sqlite3* db, const CacheEntry& e) {
 		const char* sql = R"(
 INSERT INTO cache(key,alias,vndb_id,title,alt_title,image_url,
-                  image_sexual,image_violence,rating,released,cached_at)
-VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                  image_sexual,image_violence,image_votecount,
+				  rating,released,cached_at)
+VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
 ON CONFLICT(key) DO UPDATE SET
   alias=excluded.alias, vndb_id=excluded.vndb_id, title=excluded.title,
   alt_title=excluded.alt_title, image_url=excluded.image_url,
   image_sexual=excluded.image_sexual, image_violence=excluded.image_violence,
-  rating=excluded.rating, released=excluded.released, cached_at=excluded.cached_at;
+  image_votecount=excluded.image_votecount, rating=excluded.rating,
+  released=excluded.released, cached_at=excluded.cached_at;
 )";
 		sqlite3_stmt* stmt = nullptr;
 		if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -154,9 +159,10 @@ ON CONFLICT(key) DO UPDATE SET
 		bind(4, e.title); bind(5, e.alt_title); bind(6, e.image_url);
 		sqlite3_bind_double(stmt, 7, e.image_sexual);
 		sqlite3_bind_double(stmt, 8, e.image_violence);
-		sqlite3_bind_double(stmt, 9, e.rating);
-		bind(10, e.released);
-		sqlite3_bind_int64(stmt, 11, e.cached_at);
+		sqlite3_bind_int(stmt, 9, e.image_votecount);
+		sqlite3_bind_double(stmt, 10, e.rating);
+		bind(11, e.released);
+		sqlite3_bind_int64(stmt, 12, e.cached_at);
 		sqlite3_step(stmt);
 		sqlite3_finalize(stmt);
 	}
@@ -253,8 +259,8 @@ void VnCache::parse(const std::string& csv) {
 		if (stripped.rfind("key,", 0) == 0) continue;
 
 		auto f = splitCsvRow(line);
-		// Pad to 10 fields
-		while (f.size() < 11) f.emplace_back();
+		// Pad to 11 fields
+		while (f.size() < 12) f.emplace_back();
 
 		CacheEntry e;
 		e.key            = f[0];
@@ -265,9 +271,10 @@ void VnCache::parse(const std::string& csv) {
 		e.image_url      = f[5];
 		e.image_sexual   = toDouble(f[6]);
 		e.image_violence = toDouble(f[7]);
-		e.rating         = toDouble(f[8]);
-		e.released       = f[9];
-		try { e.cached_at = f[10].empty() ? 0 : std::stoll(f[10]); } catch (...) {}
+		e.image_votecount = stoi(f[8]);
+		e.rating         = toDouble(f[9]);
+		e.released       = f[10];
+		try { e.cached_at = f[11].empty() ? 0 : std::stoll(f[11]); } catch (...) {}
 
 		if (!e.key.empty()) {
 			LOG_DEBUG("Cache row: key=\"" << e.key
@@ -305,6 +312,7 @@ std::string VnCache::serialise(const CacheEntry& e) {
 		<< q(e.image_url)    << ','
 		<< e.image_sexual    << ','
 		<< e.image_violence  << ','
+		<< e.image_votecount << ','
 		<< e.rating          << ','
 		<< q(e.released)     << ','
 		<< e.cached_at;
@@ -349,6 +357,7 @@ void VnCache::save() const {
 				"  image_url      Cover image URL   (auto-filled)\n"
 				"  image_sexual   VNDB sexual rating 0-3  (auto-filled)\n"
 				"  image_violence VNDB violence rating 0-3 (auto-filled)\n"
+				"  image_votecount VNDB image vote count (auto-filled)\n"
 				"  rating         VNDB rating 0-100 (auto-filled)\n"
 				"  released       Release date      (auto-filled)\n"
 				"  cached_at      Unix timestamp of last update (auto-filled)\n"
@@ -437,6 +446,7 @@ void VnCache::store(const std::string& key, const VnInfo& vn) {
 	e.image_url      = vn.image_url;
 	e.image_sexual   = vn.image_sexual;
 	e.image_violence = vn.image_violence;
+	e.image_votecount = vn.image_votecount;
 	e.rating         = vn.rating;
 	e.released       = vn.released;
 	e.cached_at      = nowUnix();
@@ -475,6 +485,7 @@ void VnCache::storeAliasFilled(const std::string& key, const std::string& alias,
 	e.image_url      = vn.image_url;
 	e.image_sexual   = vn.image_sexual;
 	e.image_violence = vn.image_violence;
+	e.image_votecount = vn.image_votecount;
 	e.rating         = vn.rating;
 	e.released       = vn.released;
 	e.cached_at      = nowUnix();
