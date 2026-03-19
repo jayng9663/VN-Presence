@@ -29,9 +29,10 @@ namespace config {
 	/** Maximum number of VNDB results returned per search (we only use index 0). **/
 	inline constexpr int VNDB_MAX_RESULTS = 1;
 
-	/** Maximum value for sexual or violence before being supperessd **/
+	/** Maximum value for sexual or violence before being supperessd, and the minimum vote count req.**/
 	inline constexpr double IMAGE_SEXUAL   = 1.80;
 	inline constexpr double IMAGE_VIOLENCE = 1.80;
+	inline constexpr int    IMAGE_VOTECOUNT = 5;
 
 	/** Minimum trigram-similarity score (0.0–1.0) needed to accept a VNDB result.
 	 * Lower = more permissive, higher = stricter.
