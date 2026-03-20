@@ -222,9 +222,11 @@ void RpcManager::setPresence(const VnInfo& vn, const std::string& source)
 		}
 	} else {
 		// Lutris (or unknown source) — use Lutris DB
-		auto pt = LutrisDB::getPlaytime(vn.title.empty() ? vn.alt_title : vn.title);
-		if (!pt && !vn.alt_title.empty())
+		std::optional<int64_t> pt;
+		if (!vn.alt_title.empty())
 			pt = LutrisDB::getPlaytime(vn.alt_title);
+		if (!pt)
+			pt = LutrisDB::getPlaytime(vn.title);
 		playtimeSeconds = pt;
 		if (pt)
 			LOG_DEBUG("Lutris playtime: " << LutrisDB::formatPlaytime(*pt));
