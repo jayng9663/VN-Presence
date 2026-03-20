@@ -196,9 +196,21 @@ int main(int argc, char* argv[])
 				}
 
 			} else if (cached->hasMatch()) {
-				vnInfo = cached->toVnInfo();
-				LOG_INFO("Cache hit: \"" << vnInfo->title << "\"");
+				int64_t now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+				int64_t ttlSeconds = std::chrono::duration_cast<std::chrono::seconds>(config::VNDB_CACHE_TTL).count();
+				bool stale = (now - cached->cached_at) > ttlSeconds;
 
+				if (!stale) {
+					vnInfo = cached->toVnInfo();
+					LOG_INFO("Cache hit: \"" << vnInfo->title << "\"");
+				} else {
+					int64_t ageMinutes = (now - cached->cached_at) / 60;
+					LOG_INFO("Cache expired for \"" << searchTitle
+							<< "\"  age=" << ageMinutes << "min/"
+							<< (ttlSeconds / 60) << "min — re-querying VNDB");
+					vnInfo = vndb.search(searchTitle);
+					if (vnInfo) cache.store(searchTitle, *vnInfo);
+				}
 			} else {
 				LOG_INFO("Stale no-match entry for \"" << searchTitle
 				<< "\" — migrating to ignore list");
