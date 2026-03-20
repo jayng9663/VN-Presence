@@ -158,8 +158,15 @@ int SteamDetector::getRunningAppId()
 		std::ifstream f(environPath, std::ios::binary);
 		if (!f) continue;
 
-		std::string blob((std::istreambuf_iterator<char>(f)),
-				std::istreambuf_iterator<char>());
+		std::string blob;
+		try {
+			blob.assign(std::istreambuf_iterator<char>(f),
+					std::istreambuf_iterator<char>());
+		} catch (const std::ios_base::failure&) {
+			continue;
+		} catch (...) {
+			continue;
+		}
 
 		std::string val = environValue(blob, "SteamAppId");
 		if (val.empty() || val == "0") continue;
