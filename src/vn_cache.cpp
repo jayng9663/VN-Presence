@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS cache (
 	// Read all rows from DB into the entries map
 	void dbLoad(sqlite3* db, std::unordered_map<std::string, CacheEntry>& entries) {
 		const char* sql = "SELECT key,alias,vndb_id,title,alt_title,image_url,"
-			"image_sexual,image_violence,rating,released,cached_at FROM cache";
+			"image_sexual,image_violence,image_votecount,rating,released,cached_at FROM cache";
 		sqlite3_stmt* stmt = nullptr;
 		if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return;
 		entries.clear();
@@ -117,18 +117,18 @@ CREATE TABLE IF NOT EXISTS cache (
 				return t ? t : "";
 			};
 			CacheEntry e;
-			e.key            = col(0);
-			e.alias          = col(1);
-			e.vndb_id        = col(2);
-			e.title          = col(3);
-			e.alt_title      = col(4);
-			e.image_url      = col(5);
-			e.image_sexual   = sqlite3_column_double(stmt, 6);
-			e.image_violence = sqlite3_column_double(stmt, 7);
+			e.key             = col(0);
+			e.alias           = col(1);
+			e.vndb_id         = col(2);
+			e.title           = col(3);
+			e.alt_title       = col(4);
+			e.image_url       = col(5);
+			e.image_sexual    = sqlite3_column_double(stmt, 6);
+			e.image_violence  = sqlite3_column_double(stmt, 7);
 			e.image_votecount = sqlite3_column_int(stmt, 8);
-			e.rating         = sqlite3_column_double(stmt, 9);
-			e.released       = col(8);
-			e.cached_at      = sqlite3_column_int64(stmt, 11);
+			e.rating          = sqlite3_column_double(stmt, 9);
+			e.released        = col(10);
+			e.cached_at       = sqlite3_column_int64(stmt, 11);
 			if (!e.key.empty()) entries[e.key] = std::move(e);
 		}
 		sqlite3_finalize(stmt);
@@ -243,7 +243,8 @@ void VnCache::parse(const std::string& csv) {
 	std::string line;
 
 	// Expected column order (must match serialise()):
-	// key,alias,vndb_id,title,image_url,image_sexual,image_violence,rating,released,cached_at
+	// key,alias,vndb_id,title,alt_title,image_url,
+	// image_sexual,image_violence,image_votecount,rating,released,cached_at
 	while (std::getline(ss, line)) {
 		// Strip carriage return
 		if (!line.empty() && line.back() == '\r') line.pop_back();
@@ -259,7 +260,7 @@ void VnCache::parse(const std::string& csv) {
 		if (stripped.rfind("key,", 0) == 0) continue;
 
 		auto f = splitCsvRow(line);
-		// Pad to 11 fields
+		// Pad to 12 fields
 		while (f.size() < 12) f.emplace_back();
 
 		CacheEntry e;
@@ -271,7 +272,7 @@ void VnCache::parse(const std::string& csv) {
 		e.image_url      = f[5];
 		e.image_sexual   = toDouble(f[6]);
 		e.image_violence = toDouble(f[7]);
-		e.image_votecount = stoi(f[8]);
+		e.image_votecount = std::stoi(f[8]);
 		e.rating         = toDouble(f[9]);
 		e.released       = f[10];
 		try { e.cached_at = f[11].empty() ? 0 : std::stoll(f[11]); } catch (...) {}
@@ -400,7 +401,7 @@ void VnCache::save() const {
 	// Plain header row — no # comments inside the CSV so every spreadsheet
 	// app opens the file cleanly without treating comments as data rows.
 	f << "key,alias,vndb_id,title,alt_title,image_url,"
-		"image_sexual,image_violence,rating,released,cached_at\n";
+		"image_sexual,image_violence,image_votecount,rating,released,cached_at\n";
 
 	for (const auto& [key, e] : entries_)
 		f << serialise(e) << '\n';
