@@ -24,7 +24,7 @@ namespace config {
 	 * Keep minimal to stay within the API response-size limits.
 	 **/
 	inline constexpr std::string_view VNDB_FIELDS =
-		"id,title,alttitle,image.url,image.sexual,image.violence,rating,released,length_minutes,devstatus";
+		"id,title,alttitle,image.url,image.sexual,image.violence,image.votecount,rating,released,length_minutes,devstatus";
 
 	/** Maximum number of VNDB results returned per search (we only use index 0). **/
 	inline constexpr int VNDB_MAX_RESULTS = 1;
