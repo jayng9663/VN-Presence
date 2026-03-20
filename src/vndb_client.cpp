@@ -106,35 +106,13 @@ VndbClient::~VndbClient() {
 	curl_global_cleanup();
 }
 
-void VndbClient::clearCache() { cache_.clear(); }
-
 std::optional<VnInfo> VndbClient::search(const std::string& title)
-{
-	auto it = cache_.find(title);
-	if (it != cache_.end()) {
-		auto age = std::chrono::steady_clock::now() - it->second.inserted;
-		auto ageMin = std::chrono::duration_cast<std::chrono::minutes>(age).count();
-		if (age < config::VNDB_CACHE_TTL) {
-			LOG_DEBUG("In-memory TTL cache hit for \"" << title
-					<< "\"  age=" << ageMin << "min/"
-					<< config::VNDB_CACHE_TTL.count() << "min");
-			return it->second.value;
-		}
-		LOG_DEBUG("In-memory TTL cache expired for \"" << title
-				<< "\"  age=" << ageMin << "min — re-querying");
-		cache_.erase(it);
-	}
-	return searchFresh(title);
-}
-
-std::optional<VnInfo> VndbClient::searchFresh(const std::string& title)
 {
 	auto result = doSearch(title);
 	if (!result) {
 		LOG_INFO("VN search failed — trying release search for \"" << title << "\"");
 		result = searchViaRelease(title);
 	}
-	cache_[title] = { result, std::chrono::steady_clock::now() };
 	return result;
 }
 

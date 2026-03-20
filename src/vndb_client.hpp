@@ -1,8 +1,6 @@
 #pragma once
 #include <string>
 #include <optional>
-#include <unordered_map>
-#include <chrono>
 
 #include <config.hpp>
 
@@ -63,15 +61,6 @@ public:
 	 **/
 	[[nodiscard]] std::optional<VnInfo> search(const std::string& title);
 
-	/**
-	 * Same as search() but always issues a fresh HTTP request,
-	 * bypassing the in-memory cache.
-	 **/
-	[[nodiscard]] std::optional<VnInfo> searchFresh(const std::string& title);
-
-	/** Clear the in-memory TTL cache. **/
-	void clearCache();
-
 private:
 	[[nodiscard]] std::optional<VnInfo> doSearch(const std::string& title);
 
@@ -87,10 +76,4 @@ private:
 											   const std::string& query);
 	/** Compute trigram similarity between two strings (0.0–1.0). **/
 	static double titleSimilarity(const std::string& a, const std::string& b);
-
-	struct CacheEntry {
-		std::optional<VnInfo>                 value;
-		std::chrono::steady_clock::time_point inserted;
-	};
-	std::unordered_map<std::string, CacheEntry> cache_;
 };
