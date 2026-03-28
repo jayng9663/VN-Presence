@@ -46,8 +46,20 @@ std::vector<std::string> ProcessScanner::readCmdline(int pid)
 {
 	std::ifstream f("/proc/" + std::to_string(pid) + "/cmdline", std::ios::binary);
 	if (!f) return {};
-	std::string raw((std::istreambuf_iterator<char>(f)),
-			std::istreambuf_iterator<char>());
+	f.exceptions(std::ios::badbit | std::ios::failbit);
+	std::string raw;
+	try {
+		raw.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+	} catch (const std::ios_base::failure& e) {
+		LOG_ERR("readCmdline pid=" << pid << " vanished mid-read: " << e.what());
+		return {};
+	} catch (const std::exception& e) {
+		LOG_ERR("readCmdline pid=" << pid << " unexpected error: " << e.what());
+		return {};
+	} catch (...) {
+		LOG_ERR("readCmdline pid=" << pid << " unknown error");
+		return {};
+	}
 	return splitCmdline(raw);
 }
 
