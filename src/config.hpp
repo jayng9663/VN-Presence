@@ -8,6 +8,9 @@ namespace config {
 	/** Discord application ID. **/
 	inline constexpr std::string_view DISCORD_APP_ID = "1482345564698841189";
 
+	/** Activity type**/
+	inline constexpr int DISCORD_ACTIVITY_TYPE = 0; // 0=Game, 1=Streaming, 2=Listening, 3=Watching
+
 	/** Base URL of the VNDB Kana REST API. **/
 	inline constexpr std::string_view VNDB_API_URL         = "https://api.vndb.org/kana/vn";
 
