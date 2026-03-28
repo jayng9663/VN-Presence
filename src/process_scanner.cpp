@@ -105,14 +105,14 @@ next_pid:;
 	}
 
 	// ── 2. Steam AppID ──
-	// Done once outside the /proc loop — SteamDetector handles its own scan.
-	// Only added if lutris didn't already find something.
-	bool hasLutris = std::any_of(results.begin(), results.end(),
-			[](const VnProcess& p){ return p.source == "lutris"; });
-
-	if (!hasLutris) {
-		auto steamName = SteamDetector::getRunningGameName();
-		if (steamName) {
+	// Always checked regardless of Lutris — both sources are returned so
+	// the multi-candidate resolver in main can pick whichever is a VN.
+	auto steamName = SteamDetector::getRunningGameName();
+	if (steamName) {
+		// Deduplicate: skip if a Lutris entry already carries the same name.
+		bool alreadyPresent = std::any_of(results.begin(), results.end(),
+				[&](const VnProcess& p){ return p.gameName == *steamName; });
+		if (!alreadyPresent) {
 			LOG_DEBUG("Steam-appid match: name=\"" << *steamName << "\"");
 			results.push_back({ *steamName, "", 0, "steam-appid" });
 		}
