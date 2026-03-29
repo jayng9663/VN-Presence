@@ -133,7 +133,7 @@ std::optional<VnInfo> VndbClient::doSearch(const std::string& title)
 	headers = curl_slist_append(headers, "Content-Type: application/json");
 	headers = curl_slist_append(headers, "Accept: application/json");
 	// Polite user-agent (VNDB's docs request this)
-	headers = curl_slist_append(headers, "User-Agent: VN-Presence/1.0 (github; contact via issues)");
+	headers = curl_slist_append(headers, "User-Agent: VN-Presence (github; contact via issues)");
 
 	curl_easy_setopt(curl, CURLOPT_URL,            config::VNDB_API_URL.data());
 	curl_easy_setopt(curl, CURLOPT_POST,           1L);
