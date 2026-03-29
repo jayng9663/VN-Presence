@@ -71,6 +71,9 @@ Lutris passes the game name explicitly as command-line arguments after `lutris-w
 
 After all candidates are collected, the daemon reads **field 22** (`starttime`) from each process's `/proc/<pid>/stat`. Candidates are then **sorted ascending by starttime**, so the process that launched first is always tried first during VNDB resolution. This makes multi-candidate priority deterministic and reproducible across polls.
 
+> [!NOTE]
+> See the [/proc/\[PID\]/stat field reference](proc_stat_fields.md) for a full breakdown of all stat fields.
+
 > [!TIP]
 > Run with `--verbose` to see candidates list in the debug output:
 > ```
