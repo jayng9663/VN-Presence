@@ -29,6 +29,12 @@ class SteamDetector {
 		[[nodiscard]] static int getRunningAppId();
 
 		/**
+		 * Return the PID of the currently running Steam game process, or 0 if none.
+		 * The same /proc scan used by getRunningAppId(); shares a helper internally.
+		 **/
+		[[nodiscard]] static int getRunningPid();
+
+		/**
 		 * Read total playtime for a given AppID from Steam local userdata.
 		 * Reads ~/.local/share/Steam/userdata/<steamid>/config/localconfig.vdf
 		 * @return Playtime in minutes, or 0 if not found.
