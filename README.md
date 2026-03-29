@@ -62,9 +62,24 @@ flowchart TD
     S -- yes --> SA[Read appmanifest_ID.acf\nfrom all library paths]
     SA --> SN[Steam store name]
     S -- no --> NONE[Nothing detected]
+    LN --> ST[Read starttime\nfrom /proc/pid/stat field 22]
+    SN --> ST
+    ST --> SORT[Sort candidates\nby starttime ascending]
 ```
 
 Lutris passes the game name explicitly as command-line arguments after `lutris-wrapper`, so the name is always exact. Steam injects `SteamAppId` as an environment variable into every game process — the daemon reads it from `/proc/<pid>/environ`, then finds the matching `.acf` file across all Steam library paths (including custom drives read from `libraryfolders.vdf`).
+
+After all candidates are collected, the daemon reads **field 22** (`starttime`) from each process's `/proc/<pid>/stat`. Candidates are then **sorted ascending by starttime**, so the process that launched first is always tried first during VNDB resolution. This makes multi-candidate priority deterministic and reproducible across polls.
+
+> [!TIP]
+> Run with `--verbose` to see candidates list in the debug output:
+> ```
+> [DEBUG] src/main.cpp:73 3 game candidate(s) found:
+>   [DEBUG] src/main.cpp:75   [lutris] pid=2037324  name="終ノ空 remake"  starttime(clock ticks)=4906595
+>   [DEBUG] src/main.cpp:75   [lutris] pid=2086738  name="X-Plane 12"  starttime(clock ticks)=4906701
+>   [DEBUG] src/main.cpp:75   [steam-appid] pid=2037822  name="心象天儀本線 ~Per aspera ad astra~ Demo"  starttime(clock ticks)=4906857
+>   [DEBUG] src/main.cpp:75   [lutris] pid=2038526  name="サクラノ詩－櫻の森の上を舞う－"  starttime(clock ticks)=4907260
+> ```
 
 ---
 
