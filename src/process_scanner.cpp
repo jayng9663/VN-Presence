@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -40,6 +42,26 @@ namespace {
 	}
 
 } // anonymous namespace
+
+// Read /proc/<pid>/stat field 22 (starttime, clock ticks since boot).
+// Lower value = process started earlier. Returns INT64_MAX on failure.
+static int64_t readStartTime(int pid)
+{
+	if (pid <= 0) return INT64_MAX;
+	std::ifstream f("/proc/" + std::to_string(pid) + "/stat");
+	if (!f) return INT64_MAX;
+	std::string line;
+	if (!std::getline(f, line)) return INT64_MAX;
+	// Skip past comm field (may contain spaces/parens inside the parens).
+	auto rp = line.rfind(')');
+	if (rp == std::string::npos) return INT64_MAX;
+	// All remaining fields are plain space-separated values; starttime is #22
+	// overall, which is the 20th token after ')'.
+	std::istringstream iss(line.substr(rp + 2));
+	std::vector<std::string> fields{ std::istream_iterator<std::string>(iss), {} };
+	if (fields.size() < 20) return INT64_MAX;
+	try { return std::stoll(fields[19]); } catch (...) { return INT64_MAX; }
+}
 
 // ─── ProcessScanner::readCmdline ───
 std::vector<std::string> ProcessScanner::readCmdline(int pid)
@@ -109,7 +131,7 @@ std::vector<VnProcess> ProcessScanner::scan()
 			LOG_DEBUG("Lutris match: pid=" << pid
 					<< "  name=\"" << gameName << "\""
 					<< "  exe=" << exePath);
-			results.push_back({ gameName, exePath, pid, "lutris" });
+			results.push_back({ gameName, exePath, pid, "lutris", readStartTime(pid) });
 			goto next_pid;
 		}
 
@@ -125,10 +147,16 @@ next_pid:;
 		bool alreadyPresent = std::any_of(results.begin(), results.end(),
 				[&](const VnProcess& p){ return p.gameName == *steamName; });
 		if (!alreadyPresent) {
-			LOG_DEBUG("Steam-appid match: name=\"" << *steamName << "\"");
-			results.push_back({ *steamName, "", 0, "steam-appid" });
+			int steamPid = SteamDetector::getRunningPid();
+			LOG_DEBUG("Steam-appid match: name=\"" << *steamName << "\"  pid=" << steamPid);
+			results.push_back({ *steamName, "", steamPid, "steam-appid", readStartTime(steamPid) });
 		}
 	}
+
+	// ── Sort by process start time (earliest first) ──
+	std::sort(results.begin(), results.end(), [](const VnProcess& a, const VnProcess& b) {
+		return a.starttime < b.starttime;
+	});
 
 	return results;
 }
