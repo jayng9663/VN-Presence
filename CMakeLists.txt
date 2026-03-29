@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(vn-discord-rpc VERSION 1.0.0 LANGUAGES CXX)
+project(VN-Presence VERSION 1.0.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,7 +39,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 	discord-rpc
 	nlohmann_json::nlohmann_json
 	${CURL_LIBRARIES}
-	SQLite::SQLite3
+	SQLite3::SQLite3
 	pthread
 )
 
@@ -52,7 +52,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 # ── Install ──
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 install(FILES
-	${CMAKE_CURRENT_SOURCE_DIR}/data/vn-discord-rpc.service
+	${CMAKE_CURRENT_SOURCE_DIR}/data/VN-Presence.service
 	DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/user
 	OPTIONAL
 )
