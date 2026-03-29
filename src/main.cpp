@@ -72,8 +72,7 @@ static std::vector<VnProcess> detectCandidates()
 	} else {
 		LOG_DEBUG(procs.size() << " game candidate(s) found:");
 		for (const auto& p : procs)
-			LOG_DEBUG("  [" << p.source << "] pid=" << p.pid
-					<< "  name=\"" << p.gameName << "\"");
+			LOG_DEBUG("  [" << p.source << "] pid=" << p.pid << "  name=\"" << p.gameName << "\"  starttime(clock ticks)=" << p.starttime);
 	}
 	return procs;
 }
@@ -190,8 +189,7 @@ int main(int argc, char* argv[])
 		std::string           matchedSource;
 
 		if (candidates.size() > 1)
-			LOG_INFO("Checking " << candidates.size()
-					<< " candidates for a VN match");
+			LOG_INFO("Checking " << candidates.size() << " candidates for a VN match");
 
 		for (const auto& proc : candidates) {
 			const std::string& title = proc.gameName;
@@ -212,8 +210,7 @@ int main(int argc, char* argv[])
 						vnInfo        = cached->toVnInfo();
 						matchedTitle  = title;
 						matchedSource = proc.source;
-						LOG_INFO("Cache hit (alias→" << cached->alias
-								<< "): \"" << vnInfo->title << "\"");
+						LOG_INFO("Cache hit (alias→" << cached->alias << "): \"" << vnInfo->title << "\"");
 						break;
 					}
 					// Alias target not yet resolved — query VNDB now
@@ -250,9 +247,7 @@ int main(int argc, char* argv[])
 					}
 					// Stale — refresh from VNDB
 					int64_t ageMin = (now - cached->cached_at) / 60;
-					LOG_INFO("Cache expired for \"" << title
-							<< "\"  age=" << ageMin << "min/"
-							<< (ttlSec / 60) << "min — re-querying VNDB");
+					LOG_INFO("Cache expired for \"" << title << "\"  age=" << ageMin << "min/" << (ttlSec / 60) << "min — re-querying VNDB");
 					vnInfo = vndb.search(title);
 					if (vnInfo) {
 						cache.store(title, *vnInfo);
@@ -265,8 +260,7 @@ int main(int argc, char* argv[])
 				}
 
 				// Stale no-match row → migrate to ignore list, try next
-				LOG_INFO("Stale no-match for \"" << title
-						<< "\" — migrating to ignore list");
+				LOG_INFO("Stale no-match for \"" << title << "\" — migrating to ignore list");
 				ignoreList.add(title);
 				continue;
 			}
@@ -279,8 +273,7 @@ int main(int argc, char* argv[])
 				cache.store(title, *vnInfo);
 				matchedTitle  = title;
 				matchedSource = proc.source;
-				LOG_INFO("VNDB match for \"" << title
-						<< "\": \"" << vnInfo->title << "\"");
+				LOG_INFO("VNDB match for \"" << title << "\": \"" << vnInfo->title << "\"");
 				break;
 			}
 			// No VNDB match — add to ignore list and try the next candidate
