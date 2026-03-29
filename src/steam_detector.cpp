@@ -128,12 +128,10 @@ std::vector<fs::path> SteamDetector::libraryPaths()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SteamDetector::getRunningAppId
-//
-// Scan /proc/*/environ for SteamAppId=<id>.
-// Skip AppId 0 and known infrastructure IDs (Proton, runtimes).
+// Internal: scan /proc for a Steam game process.
+// Returns {appId, pid}, or {0, 0} if nothing is running.
 // ─────────────────────────────────────────────────────────────────────────────
-int SteamDetector::getRunningAppId()
+static std::pair<int,int> findRunningAppAndPid()
 {
 	// Steam infrastructure AppIDs — skip these
 	static const std::vector<int> infraIds = {
@@ -158,8 +156,15 @@ int SteamDetector::getRunningAppId()
 		std::ifstream f(environPath, std::ios::binary);
 		if (!f) continue;
 
-		std::string blob((std::istreambuf_iterator<char>(f)),
-				std::istreambuf_iterator<char>());
+		std::string blob;
+		try {
+			blob.assign(std::istreambuf_iterator<char>(f),
+					std::istreambuf_iterator<char>());
+		} catch (const std::ios_base::failure&) {
+			continue;
+		} catch (...) {
+			continue;
+		}
 
 		std::string val = environValue(blob, "SteamAppId");
 		if (val.empty() || val == "0") continue;
@@ -174,11 +179,29 @@ int SteamDetector::getRunningAppId()
 			continue;
 		}
 
-		LOG_DEBUG("Steam: found AppId=" << appId
-				<< "  pid=" << name);
-		return appId;
+		int pid = 0;
+		try { pid = std::stoi(name); } catch (...) {}
+
+		LOG_DEBUG("Steam: found AppId=" << appId << "  pid=" << pid);
+		return {appId, pid};
 	}
-	return 0;
+	return {0, 0};
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SteamDetector::getRunningAppId
+// ─────────────────────────────────────────────────────────────────────────────
+int SteamDetector::getRunningAppId()
+{
+	return findRunningAppAndPid().first;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SteamDetector::getRunningPid
+// ─────────────────────────────────────────────────────────────────────────────
+int SteamDetector::getRunningPid()
+{
+	return findRunningAppAndPid().second;
 }
 
 // ─── SteamDetector::getRunningGameName ───

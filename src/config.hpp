@@ -8,6 +8,9 @@ namespace config {
 	/** Discord application ID. **/
 	inline constexpr std::string_view DISCORD_APP_ID = "1482345564698841189";
 
+	/** Activity type**/
+	inline constexpr int DISCORD_ACTIVITY_TYPE = 0; // 0=Game, 1=Streaming, 2=Listening, 3=Watching
+
 	/** Base URL of the VNDB Kana REST API. **/
 	inline constexpr std::string_view VNDB_API_URL         = "https://api.vndb.org/kana/vn";
 
@@ -24,14 +27,15 @@ namespace config {
 	 * Keep minimal to stay within the API response-size limits.
 	 **/
 	inline constexpr std::string_view VNDB_FIELDS =
-		"id,title,alttitle,image.url,image.sexual,image.violence,rating,released,length_minutes,devstatus";
+		"id,title,alttitle,image.url,image.sexual,image.violence,image.votecount,rating,released,length_minutes,devstatus";
 
 	/** Maximum number of VNDB results returned per search (we only use index 0). **/
 	inline constexpr int VNDB_MAX_RESULTS = 1;
 
-	/** Maximum value for sexual or violence before being supperessd **/
+	/** Maximum value for sexual or violence before being supperessd, and the minimum vote count req.**/
 	inline constexpr double IMAGE_SEXUAL   = 1.80;
 	inline constexpr double IMAGE_VIOLENCE = 1.80;
+	inline constexpr int    IMAGE_VOTECOUNT = 5;
 
 	/** Minimum trigram-similarity score (0.0–1.0) needed to accept a VNDB result.
 	 * Lower = more permissive, higher = stricter.

@@ -106,35 +106,13 @@ VndbClient::~VndbClient() {
 	curl_global_cleanup();
 }
 
-void VndbClient::clearCache() { cache_.clear(); }
-
 std::optional<VnInfo> VndbClient::search(const std::string& title)
-{
-	auto it = cache_.find(title);
-	if (it != cache_.end()) {
-		auto age = std::chrono::steady_clock::now() - it->second.inserted;
-		auto ageMin = std::chrono::duration_cast<std::chrono::minutes>(age).count();
-		if (age < config::VNDB_CACHE_TTL) {
-			LOG_DEBUG("In-memory TTL cache hit for \"" << title
-					<< "\"  age=" << ageMin << "min/"
-					<< config::VNDB_CACHE_TTL.count() << "min");
-			return it->second.value;
-		}
-		LOG_DEBUG("In-memory TTL cache expired for \"" << title
-				<< "\"  age=" << ageMin << "min — re-querying");
-		cache_.erase(it);
-	}
-	return searchFresh(title);
-}
-
-std::optional<VnInfo> VndbClient::searchFresh(const std::string& title)
 {
 	auto result = doSearch(title);
 	if (!result) {
 		LOG_INFO("VN search failed — trying release search for \"" << title << "\"");
 		result = searchViaRelease(title);
 	}
-	cache_[title] = { result, std::chrono::steady_clock::now() };
 	return result;
 }
 
@@ -155,7 +133,7 @@ std::optional<VnInfo> VndbClient::doSearch(const std::string& title)
 	headers = curl_slist_append(headers, "Content-Type: application/json");
 	headers = curl_slist_append(headers, "Accept: application/json");
 	// Polite user-agent (VNDB's docs request this)
-	headers = curl_slist_append(headers, "User-Agent: VN-Presence/1.0 (github; contact via issues)");
+	headers = curl_slist_append(headers, "User-Agent: VN-Presence (github; contact via issues)");
 
 	curl_easy_setopt(curl, CURLOPT_URL,            config::VNDB_API_URL.data());
 	curl_easy_setopt(curl, CURLOPT_POST,           1L);
@@ -256,12 +234,13 @@ std::optional<VnInfo> VndbClient::parseResponse(const std::string& jsonStr,
 		const auto& img = first["image"];
 		info.image_sexual   = safeDouble(img, "sexual",   0.0);
 		info.image_violence = safeDouble(img, "violence", 0.0);
+		info.image_votecount = safeInt(img, "votecount", 0);
 		if (!info.isImageExplicit())
 			info.image_url = safeStr(img, "url");
 		else
 			LOG_INFO("All covers explicit (sexual=" << info.image_sexual
 					<< " violence=" << info.image_violence
-					<< ") — cover suppressed, RPC will still show");
+					<< " votecount=" << info.image_votecount << ") — cover suppressed, RPC will still show");
 	}
 
 	info.rating         = safeDouble(first, "rating",         0.0);
@@ -429,11 +408,13 @@ std::optional<VnInfo> VndbClient::fetchById(const std::string& vnId)
 		const auto& img = first["image"];
 		info.image_sexual   = safeDouble(img, "sexual",   0.0);
 		info.image_violence = safeDouble(img, "violence", 0.0);
+		info.image_votecount = safeInt(img, "votecount", 0);
 		if (!info.isImageExplicit())
 			info.image_url = safeStr(img, "url");
 		else
 			LOG_INFO("Cover suppressed (sexual=" << info.image_sexual
-					<< " violence=" << info.image_violence << ")");
+					<< " violence=" << info.image_violence 
+					<< " votecount=" << info.image_votecount << ")");
 	}
 
 	info.rating         = safeDouble(first, "rating",         0.0);

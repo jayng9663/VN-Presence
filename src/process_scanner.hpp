@@ -13,16 +13,21 @@ struct VnProcess {
 	int         pid = 0;    ///< Linux process ID
 	std::string source;     ///< Detection method: "lutris" | "wine-exe" | "gamescope" |
 									///<                   "steam-native" | "native-engine" | "steam-arg"
+	int64_t     starttime = 0; ///< /proc/<pid>/stat field 22 (clock ticks since boot; 0 = unknown)
 };
 
 /**
- * Scans /proc for running VN game processes.
+ * Scans /proc for running game processes from all supported launchers.
  *
  * Works regardless of window focus — gamescope, nested compositors, and
  * minimised windows are all detected correctly.
  *
- * Detection strategy:
- *   1. **lutris** — python3 lutris-wrapper <name> ...
+ * Detection strategies (all run every poll; results are priority-ordered):
+ *   1. **lutris**      — python3 lutris-wrapper <name> ...
+ *   2. **steam-appid** — SteamAppId env var → appmanifest_<id>.acf "name"
+ *
+ * All candidates from every launcher are returned simultaneously so the
+ * caller can iterate them and pick whichever one matches a VN on VNDB.
  **/
 class ProcessScanner {
 	public:

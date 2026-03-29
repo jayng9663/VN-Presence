@@ -43,8 +43,9 @@ Every 5 seconds the daemon runs detection, debounces the result, checks the cach
 flowchart LR
     A[Detection\nLutris or Steam] --> B[Debounce\nstable 2 polls]
     B --> C{Cache\nlookup}
-    C -- hit --> E[Discord RPC]
-    C -- miss --> D[VNDB search]
+    C -- hit + fresh --> E[Discord RPC]
+    C -- hit + expired --> D[VNDB search]
+    C -- miss --> D
     D --> E
 ```
 
@@ -61,9 +62,24 @@ flowchart TD
     S -- yes --> SA[Read appmanifest_ID.acf\nfrom all library paths]
     SA --> SN[Steam store name]
     S -- no --> NONE[Nothing detected]
+    LN --> ST[Read starttime\nfrom /proc/pid/stat field 22]
+    SN --> ST
+    ST --> SORT[Sort candidates\nby starttime ascending]
 ```
 
 Lutris passes the game name explicitly as command-line arguments after `lutris-wrapper`, so the name is always exact. Steam injects `SteamAppId` as an environment variable into every game process — the daemon reads it from `/proc/<pid>/environ`, then finds the matching `.acf` file across all Steam library paths (including custom drives read from `libraryfolders.vdf`).
+
+After all candidates are collected, the daemon reads **field 22** (`starttime`) from each process's `/proc/<pid>/stat`. Candidates are then **sorted ascending by starttime**, so the process that launched first is always tried first during VNDB resolution. This makes multi-candidate priority deterministic and reproducible across polls.
+
+> [!TIP]
+> Run with `--verbose` to see candidates list in the debug output:
+> ```
+> [DEBUG] src/main.cpp:73 3 game candidate(s) found:
+>   [DEBUG] src/main.cpp:75   [lutris] pid=2037324  name="終ノ空 remake"  starttime(clock ticks)=4906595
+>   [DEBUG] src/main.cpp:75   [lutris] pid=2086738  name="X-Plane 12"  starttime(clock ticks)=4906701
+>   [DEBUG] src/main.cpp:75   [steam-appid] pid=2037822  name="心象天儀本線 ~Per aspera ad astra~ Demo"  starttime(clock ticks)=4906857
+>   [DEBUG] src/main.cpp:75   [lutris] pid=2038526  name="サクラノ詩－櫻の森の上を舞う－"  starttime(clock ticks)=4907260
+> ```
 
 ---
 
@@ -82,6 +98,26 @@ flowchart TD
 ```
 
 Before the similarity check, full-width ASCII (`！２→!2`, `（→(`) is normalised to half-width so Japanese game names from Lutris match VNDB's stored titles. There is also a substring boost — if the query appears inside the returned title, the score is raised to at least 0.6, handling cases where the detected name is a short prefix of a long VNDB title.
+
+---
+
+### Cache TTL
+
+VNDB results are stored persistently in `cache.csv`. On each cache hit the daemon compares the entry's `cached_at` timestamp against `VNDB_CACHE_TTL`. If the entry is older than the TTL, it is treated as expired and a fresh VNDB query is issued, updating the stored data and timestamp.
+
+```mermaid
+flowchart TD
+    HIT[Cache hit] --> AGE{age > VNDB_CACHE_TTL?}
+    AGE -- no --> USE[Use cached VnInfo]
+    AGE -- yes --> REQUERY[Re-query VNDB\nupdate cache.csv]
+    REQUERY --> USE
+```
+
+This means ratings, cover images, and release dates in the cache are automatically refreshed over time without any manual intervention. The log line when a re-query fires looks like:
+
+```
+[INFO] Cache expired for "..."  age=1442min/1440min — re-querying VNDB
+```
 
 ---
 
@@ -165,11 +201,11 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 | Constant | Default | Description |
 |---|---|---|
 | `DISCORD_APP_ID` | `1482345564698841189` | Discord application ID |
-| `IMAGE_SEXUAL` | `1.80` | Maximum threshold value for sexual before being supperessd |
-| `IMAGE_VIOLENCE` | `1.80` | Maximum threshold value for violence before being supperessd |
+| `IMAGE_SEXUAL` | `1.80` | Maximum threshold value for sexual before being suppressed |
+| `IMAGE_VIOLENCE` | `1.80` | Maximum threshold value for violence before being suppressed |
 | `VNDB_MIN_SIMILARITY` | `0.35` | Minimum trigram score to accept a match |
 | `POLL_INTERVAL` | `5s` | How often to scan for running processes |
-| `VNDB_CACHE_TTL` | `24hours` | In-memory VNDB result cache lifetime |
+| `VNDB_CACHE_TTL` | `24h` | How long a `cache.csv` or `cache.db` entry is valid before re-querying VNDB |
 | `STABLE_TITLE_POLLS` | `2` | Polls a title must be stable before acting |
 | `CACHE_USE_DB` | `false` | **[Experimental]** Use SQLite (`cache.db`) instead of CSV (`cache.csv`) |
 

@@ -1,8 +1,6 @@
 #pragma once
 #include <string>
 #include <optional>
-#include <unordered_map>
-#include <chrono>
 
 #include <config.hpp>
 
@@ -26,11 +24,14 @@ struct VnInfo {
 	 **/
 	double image_sexual   = 0.0;  ///< Sexual content rating
 	double image_violence = 0.0;  ///< Violence content rating
+	int    image_votecount  = 0;  ///< VNDB Vote Count
 
 	/**
-	 * Return true when the cover image should be suppressed in Discord
+	 * Return true when the cover image should be suppressed in Discord.
+	 * Ratings are only trusted when backed by at least IMAGE_VOTECOUNT votes.
 	 **/
 	[[nodiscard]] bool isImageExplicit() const noexcept {
+		if (image_votecount < config::IMAGE_VOTECOUNT) return false;
 		return image_sexual >= config::IMAGE_SEXUAL || image_violence >= config::IMAGE_VIOLENCE;
 	}
 };
@@ -60,15 +61,6 @@ public:
 	 **/
 	[[nodiscard]] std::optional<VnInfo> search(const std::string& title);
 
-	/**
-	 * Same as search() but always issues a fresh HTTP request,
-	 * bypassing the in-memory cache.
-	 **/
-	[[nodiscard]] std::optional<VnInfo> searchFresh(const std::string& title);
-
-	/** Clear the in-memory TTL cache. **/
-	void clearCache();
-
 private:
 	[[nodiscard]] std::optional<VnInfo> doSearch(const std::string& title);
 
@@ -84,10 +76,4 @@ private:
 											   const std::string& query);
 	/** Compute trigram similarity between two strings (0.0–1.0). **/
 	static double titleSimilarity(const std::string& a, const std::string& b);
-
-	struct CacheEntry {
-		std::optional<VnInfo>                 value;
-		std::chrono::steady_clock::time_point inserted;
-	};
-	std::unordered_map<std::string, CacheEntry> cache_;
 };

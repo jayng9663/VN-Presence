@@ -13,7 +13,8 @@ inline constexpr std::string_view CACHE_SKIP = "SKIP";
  *
  * CSV column order:
  *   key, alias, vndb_id, title, alt_title, image_url,
- *   image_sexual, image_violence, rating, released, cached_at
+ *   image_sexual, image_violence, ,image_votecount rating,
+ *   released, cached_at
  **/
 struct CacheEntry {
 	std::string key;            ///< Detected game name (the search term)
@@ -24,6 +25,7 @@ struct CacheEntry {
 	std::string image_url;      ///< Cover image URL
 	double      image_sexual   = 0.0;  ///< VNDB sexual rating (0–2)
 	double      image_violence = 0.0;  ///< VNDB violence rating (0–2)
+	int         image_votecount  = 0;  ///< VNDB Vote Count
 	double      rating         = 0.0;  ///< VNDB community rating (0–100)
 	std::string released;              ///< Release date string
 	int64_t     cached_at      = 0;    ///< Unix timestamp of last write
