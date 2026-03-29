@@ -13,6 +13,7 @@ struct VnProcess {
 	int         pid = 0;    ///< Linux process ID
 	std::string source;     ///< Detection method: "lutris" | "wine-exe" | "gamescope" |
 									///<                   "steam-native" | "native-engine" | "steam-arg"
+	int64_t     starttime = 0; ///< /proc/<pid>/stat field 22 (clock ticks since boot; 0 = unknown)
 };
 
 /**
