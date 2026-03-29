@@ -74,7 +74,7 @@ After all candidates are collected, the daemon reads **field 22** (`starttime`) 
 > [!TIP]
 > Run with `--verbose` to see candidates list in the debug output:
 > ```
-> [DEBUG] src/main.cpp:73 3 game candidate(s) found:
+> [DEBUG] src/main.cpp:73 4 game candidate(s) found:
 >   [DEBUG] src/main.cpp:75   [lutris] pid=2037324  name="終ノ空 remake"  starttime(clock ticks)=4906595
 >   [DEBUG] src/main.cpp:75   [lutris] pid=2086738  name="X-Plane 12"  starttime(clock ticks)=4906701
 >   [DEBUG] src/main.cpp:75   [steam-appid] pid=2037822  name="心象天儀本線 ~Per aspera ad astra~ Demo"  starttime(clock ticks)=4906857
