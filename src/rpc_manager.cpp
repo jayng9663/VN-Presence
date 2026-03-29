@@ -56,7 +56,7 @@ static void applyLocked() {
 	auto& presence = discord::RPCManager::get()
 		.getPresence()
 		.clear()
-		.setActivityType(discord::ActivityType::Game)
+		.setActivityType(static_cast<discord::ActivityType>(config::DISCORD_ACTIVITY_TYPE))
 		.setDetails(s_details)
 		.setState(s_state)
 		.setStartTimestamp(s_startTimestamp);
