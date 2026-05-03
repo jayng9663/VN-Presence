@@ -183,9 +183,9 @@ Matching rules:
 The default file includes common false-positives: Steam runtimes, Proton, Wine helpers, and launchers.
 
 > [!WARNING]
-> If a title has no VNDB match and is not in the ignore list, the daemon will not add it
-> to ignore automatically. It will retry the VNDB query on every detection. Add a `SKIP`
-> entry in `cache.csv` or an entry in `ignore.txt` to suppress it permanently.
+> If a title has no VNDB match, the daemon automatically adds it to ignore.txt after the first failed query.
+> It will not be retried on subsequent polls. To force a retry, remove the entry from ignore.txt.
+> To permanently suppress it without querying VNDB at all, add a SKIP entry to cache.csv instead.
 
 ---
 
