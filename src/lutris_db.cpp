@@ -115,8 +115,9 @@ std::optional<int64_t> LutrisDB::getPlaytime(const std::string& gameName)
 			bestPlaytime = playtime;
 			result       = playtime;
 			LOG_DEBUG("Lutris playtime match: \"" << nameRaw
-					<< "\"  hours=" << playtimeHours
-					<< "  seconds=" << playtime);
+					<< "\"  " << formatPlaytime(playtime)
+					<< "  (hours=" << playtimeHours
+					<< "  seconds=" << playtime << ")");
 		}
 	}
 
