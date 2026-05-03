@@ -4,3 +4,6 @@
 [submodule "third_party/nlohmann_json"]
 	path = third_party/nlohmann_json
 	url = https://github.com/nlohmann/json.git
+[submodule "third_party/cpp-logger"]
+	path = third_party/cpp-logger
+	url = https://github.com/jayng9663/cpp-logger.git

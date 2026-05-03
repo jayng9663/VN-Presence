@@ -234,6 +234,7 @@ cmake --build build
 |---|---|
 | [discord-presence](https://github.com/EclipseMenu/discord-presence) | Discord Rich Presence (modern C++ rewrite) |
 | [nlohmann/json](https://github.com/nlohmann/json) | JSON parsing |
+| [cpp-logger](https://github.com/jayng9663/cpp-logger) | Logging |
 | [libcurl](https://curl.se/libcurl/) | HTTP requests to VNDB API |
 | [libsqlite3](https://www.sqlite.org/) | Read Lutris playtime database |
 

@@ -33,6 +33,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/src
 	${CURL_INCLUDE_DIRS}
+	third_party/cpp-logger
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
