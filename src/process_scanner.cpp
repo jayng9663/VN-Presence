@@ -16,8 +16,8 @@ namespace fs = std::filesystem;
 namespace {
 
 	std::string trim(const std::string& s) {
-		auto a = s.find_first_not_of(" \t\n\r-_");
-		auto b = s.find_last_not_of(" \t\n\r-_");
+		auto a = s.find_first_not_of(" \t\n\r_");
+		auto b = s.find_last_not_of(" \t\n\r_");
 		return (a == std::string::npos) ? "" : s.substr(a, b - a + 1);
 	}
 
