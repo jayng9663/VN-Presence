@@ -50,30 +50,30 @@ struct VnInfo {
  * @endcode
  **/
 class VndbClient {
-public:
-	VndbClient();
-	~VndbClient();
+	public:
+		VndbClient();
+		~VndbClient();
 
-	/**
-	 * Search VNDB by title.
-	 * Results are in-memory cached for config::VNDB_CACHE_TTL.
-	 * @return Best-matching VnInfo, or nullopt on failure / no match.
-	 **/
-	[[nodiscard]] std::optional<VnInfo> search(const std::string& title);
+		/**
+		 * Search VNDB by title.
+		 * Results are in-memory cached for config::VNDB_CACHE_TTL.
+		 * @return Best-matching VnInfo, or nullopt on failure / no match.
+		 **/
+		[[nodiscard]] std::optional<VnInfo> search(const std::string& title);
 
-private:
-	[[nodiscard]] std::optional<VnInfo> doSearch(const std::string& title);
+	private:
+		[[nodiscard]] std::optional<VnInfo> doSearch(const std::string& title);
 
-	/** Search the /release endpoint and return the linked VN, or nullopt. **/
-	[[nodiscard]] std::optional<VnInfo> searchViaRelease(const std::string& title);
+		/** Search the /release endpoint and return the linked VN, or nullopt. **/
+		[[nodiscard]] std::optional<VnInfo> searchViaRelease(const std::string& title);
 
-	/** Fetch a VN directly by its VNDB ID (e.g. "v1234"). **/
-	[[nodiscard]] std::optional<VnInfo> fetchById(const std::string& vnId);
+		/** Fetch a VN directly by its VNDB ID (e.g. "v1234"). **/
+		[[nodiscard]] std::optional<VnInfo> fetchById(const std::string& vnId);
 
-	static std::string buildRequestBody(const std::string& title);
-	static std::string buildReleaseRequestBody(const std::string& title);
-	static std::optional<VnInfo> parseResponse(const std::string& json,
-											   const std::string& query);
-	/** Compute trigram similarity between two strings (0.0–1.0). **/
-	static double titleSimilarity(const std::string& a, const std::string& b);
+		static std::string buildRequestBody(const std::string& title);
+		static std::string buildReleaseRequestBody(const std::string& title);
+		static std::optional<VnInfo> parseResponse(const std::string& json,
+				const std::string& query);
+		/** Compute trigram similarity between two strings (0.0–1.0). **/
+		static double titleSimilarity(const std::string& a, const std::string& b);
 };
