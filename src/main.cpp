@@ -297,7 +297,7 @@ int main(int argc, char* argv[])
 						<< "  released=" << vnInfo->released
 						<< "  image_sexual=" << vnInfo->image_sexual
 						<< "  image_violence=" << vnInfo->image_violence);
-				rpc.setPresence(*vnInfo, matchedSource);
+				rpc.setPresence(*vnInfo, matchedSource, matchedTitle);
 				state.hasPresence      = true;
 				state.lastSearchTitle  = matchedTitle;
 				state.lastDetectSource = matchedSource;

@@ -192,7 +192,7 @@ void RpcManager::runCallbacks()
  * Uses alt_title as display title, suppresses explicit cover images,
  * and sets start_ts from Lutris or Steam playtime.
  **/
-void RpcManager::setPresence(const VnInfo& vn, const std::string& source)
+void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const std::string& detectedName)
 {
 	if (!d->connected) return;
 
@@ -227,6 +227,8 @@ void RpcManager::setPresence(const VnInfo& vn, const std::string& source)
 			pt = LutrisDB::getPlaytime(vn.alt_title);
 		if (!pt)
 			pt = LutrisDB::getPlaytime(vn.title);
+		if (!pt && !detectedName.empty())
+			pt = LutrisDB::getPlaytime(detectedName);
 		playtimeSeconds = pt;
 		if (pt)
 			LOG_DEBUG("Lutris playtime: " << LutrisDB::formatPlaytime(*pt));

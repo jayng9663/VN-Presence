@@ -53,7 +53,8 @@ public:
 	 * - source="steam-appid" → playtime from Steam localconfig.vdf
 	 * - Defers to runCallbacks() if called within the 16 s rate-limit window.
 	 **/
-	void setPresence(const VnInfo& vn, const std::string& source = "");
+	void setPresence(const VnInfo& vn, const std::string& source = "",
+			const std::string& detectedName = "");
 
 	/**
 	 * Send a generic "Playing a Visual Novel" presence when no VNDB match
