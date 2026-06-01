@@ -7,8 +7,10 @@
 #include <discord-rpc.hpp>
 
 #include <chrono>
+#include <fstream>
 #include <mutex>
 #include <string>
+#include <unistd.h>
 
 // Discord silently drops updates faster than ~15s apart.
 // 16s gives a 1s margin over Discord's enforced limit.
@@ -42,6 +44,32 @@ static bool             s_hasPresence     = false;
 static int64_t wallSeconds() {
 	return std::chrono::duration_cast<std::chrono::seconds>(
 			std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+/**
+ * Convert a /proc/<pid>/stat starttime (clock ticks since boot) to a Unix
+ * wall-clock timestamp.  Reads btime once from /proc/stat and caches it.
+ * Returns 0 on any read failure.
+ **/
+static int64_t clockTicksToWallSeconds(int64_t ticks)
+{
+	if (ticks <= 0) return 0;
+
+	static int64_t s_btime = 0;
+	if (s_btime == 0) {
+		std::ifstream f("/proc/stat");
+		std::string line;
+		while (std::getline(f, line)) {
+			if (line.rfind("btime ", 0) == 0) {
+				try { s_btime = std::stoll(line.substr(6)); } catch (...) {}
+				break;
+			}
+		}
+	}
+
+	long clkTck = sysconf(_SC_CLK_TCK);
+	if (s_btime <= 0 || clkTck <= 0) return 0;
+	return s_btime + ticks / static_cast<int64_t>(clkTck);
 }
 
 static int64_t rateLimitRemaining() {
@@ -192,7 +220,7 @@ void RpcManager::runCallbacks()
  * Uses alt_title as display title, suppresses explicit cover images,
  * and sets start_ts from Lutris or Steam playtime.
  **/
-void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const std::string& detectedName)
+void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const std::string& detectedName, int64_t processStartTicks)
 {
 	if (!d->connected) return;
 
@@ -236,15 +264,27 @@ void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const 
 
 	// Resolve startTs:
 	//   1. Same title still active in memory → keep existing timestamp
-	//   2. Playtime available → now - playtime
-	//   3. Fallback → now
+	//   2. processStartWall available + playtime → processStartWall - playtime
+	//      (elapsed = session_time + prior_playtime)
+	//   3. processStartWall only → use as-is (session time only)
+	//   4. playtime only (no proc info) → now - playtime
+	//   5. Fallback → now
+	int64_t processStartWall = clockTicksToWallSeconds(processStartTicks);
 	int64_t startTs;
 	if (vn.id == s_lastTitle && s_startTimestamp != 0) {
 		startTs = s_startTimestamp;
 		LOG_DEBUG("Reusing existing start_ts=" << startTs);
+	} else if (processStartWall > 0 && playtimeSeconds && *playtimeSeconds > 0) {
+		startTs = processStartWall - *playtimeSeconds;
+		LOG_DEBUG("Combined start_ts=" << startTs
+				<< "  (proc_start=" << processStartWall
+				<< "  playtime=" << *playtimeSeconds << "s)");
+	} else if (processStartWall > 0) {
+		startTs = processStartWall;
+		LOG_DEBUG("Process start_ts=" << startTs);
 	} else if (playtimeSeconds && *playtimeSeconds > 0) {
 		startTs = wallSeconds() - *playtimeSeconds;
-		LOG_DEBUG("Playtime start_ts=" << startTs);
+		LOG_DEBUG("Playtime-only start_ts=" << startTs);
 	} else {
 		startTs = wallSeconds();
 		LOG_DEBUG("New start_ts=" << startTs);

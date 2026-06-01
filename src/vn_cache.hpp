@@ -1,5 +1,6 @@
 #pragma once
 #include "vndb_client.hpp"
+#include <vector>
 #include <string>
 #include <optional>
 #include <unordered_map>

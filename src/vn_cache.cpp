@@ -282,7 +282,9 @@ void VnCache::parse(const std::string& csv) {
 					<< "\"  alias=\"" << e.alias
 					<< "\"  vndb_id=" << e.vndb_id
 					<< "  title=\"" << e.title << "\""
-					<< "  alt=\"" << e.alt_title << "\"");
+					<< "  alt=\"" << e.alt_title << "\""
+					//<< "  image url=\"" << e.image_url << "\""
+					);
 			entries_[e.key] = std::move(e);
 		}
 	}

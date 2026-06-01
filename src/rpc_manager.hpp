@@ -54,7 +54,8 @@ class RpcManager {
 		 * - Defers to runCallbacks() if called within the 16 s rate-limit window.
 		 **/
 		void setPresence(const VnInfo& vn, const std::string& source = "",
-				const std::string& detectedName = "");
+				const std::string& detectedName = "",
+				int64_t processStartTicks = 0);
 
 		/**
 		 * Send a generic "Playing a Visual Novel" presence when no VNDB match

@@ -187,6 +187,7 @@ int main(int argc, char* argv[])
 		std::optional<VnInfo> vnInfo;
 		std::string           matchedTitle;
 		std::string           matchedSource;
+		int64_t               matchedStarttime = 0;
 
 		if (candidates.size() > 1)
 			LOG_INFO("Checking " << candidates.size() << " candidates for a VN match");
@@ -210,6 +211,7 @@ int main(int argc, char* argv[])
 						vnInfo        = cached->toVnInfo();
 						matchedTitle  = title;
 						matchedSource = proc.source;
+						matchedStarttime = proc.starttime;
 						LOG_INFO("Cache hit (alias→" << cached->alias << "): \"" << vnInfo->title << "\"");
 						break;
 					}
@@ -222,6 +224,7 @@ int main(int argc, char* argv[])
 						cache.storeAliasFilled(title, aliasKey, *vnInfo);
 						matchedTitle  = title;
 						matchedSource = proc.source;
+						matchedStarttime = proc.starttime;
 						break;
 					}
 					LOG_INFO("No VNDB match for alias target \"" << aliasKey
@@ -242,6 +245,7 @@ int main(int argc, char* argv[])
 						vnInfo        = cached->toVnInfo();
 						matchedTitle  = title;
 						matchedSource = proc.source;
+						matchedStarttime = proc.starttime;
 						LOG_INFO("Cache hit: \"" << vnInfo->title << "\"");
 						break;
 					}
@@ -253,6 +257,7 @@ int main(int argc, char* argv[])
 						cache.store(title, *vnInfo);
 						matchedTitle  = title;
 						matchedSource = proc.source;
+						matchedStarttime = proc.starttime;
 						break;
 					}
 					// Refresh failed — try next candidate
@@ -273,6 +278,7 @@ int main(int argc, char* argv[])
 				cache.store(title, *vnInfo);
 				matchedTitle  = title;
 				matchedSource = proc.source;
+				matchedStarttime = proc.starttime;
 				LOG_INFO("VNDB match for \"" << title << "\": \"" << vnInfo->title << "\"");
 				break;
 			}
@@ -297,7 +303,7 @@ int main(int argc, char* argv[])
 						<< "  released=" << vnInfo->released
 						<< "  image_sexual=" << vnInfo->image_sexual
 						<< "  image_violence=" << vnInfo->image_violence);
-				rpc.setPresence(*vnInfo, matchedSource, matchedTitle);
+				rpc.setPresence(*vnInfo, matchedSource, matchedTitle, matchedStarttime);
 				state.hasPresence      = true;
 				state.lastSearchTitle  = matchedTitle;
 				state.lastDetectSource = matchedSource;
