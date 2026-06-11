@@ -34,12 +34,10 @@ struct AppState {
 /** Print the startup banner and warn if APP_ID is unset. **/
 static void printBanner()
 {
-	std::cout << R"(
-  ╭──────────────────────────────────────╮
-  │        vn-discord-rpc  v1.0.2        │
-  │  Visual Novel Discord Rich Presence  │
-  ╰──────────────────────────────────────╯
-)" << std::flush;
+  LOG_INFO(" ╭──────────────────────────────────────╮ ");
+  LOG_INFO(" │        vn-discord-rpc  v1.0.2        │ ");
+  LOG_INFO(" │  Visual Novel Discord Rich Presence  │ ");
+  LOG_INFO(" ╰──────────────────────────────────────╯ ");
 	if (std::string(config::DISCORD_APP_ID) == "YOUR_DISCORD_APP_ID_HERE") LOG_WARN("DISCORD_APP_ID not set in src/config.hpp! ""Get one at: https://discord.com/developers/applications");
 }
 
@@ -80,21 +78,28 @@ static std::vector<VnProcess> detectCandidates()
 int main(int argc, char* argv[])
 {
 	bool verbose = false;
+	std::string logFile;
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 		if (arg == "--verbose" || arg == "-v")   verbose = true;
+		else if (arg == "--log-file" || arg == "-l") {
+			logFile = "vn-presence.log";
+		}
 		else if (arg == "--help" || arg == "-h") {
 			std::cout <<
 				"Usage: vn-discord-rpc [OPTIONS]\n\n"
 				"Options:\n"
-				"  -v, --verbose  Enable DEBUG-level logging\n"
-				"  -h, --help     Show this message\n\n"
+				"  -v, --verbose         Enable DEBUG-level logging\n"
+				"  -l, --log-file <path> Append log output to <path>\n"
+				"  -h, --help            Show this message\n\n"
 				"Cache file: " << VnCache::defaultPath().string() << "\n";
 			return 0;
 		}
 	}
 
 	if (verbose) Logger::get().setLevel(LogLevel::DEBUG);
+	if (!logFile.empty() && !Logger::get().setFile(logFile.c_str()))
+		LOG_WARN("Could not open log file: " << logFile);
 
 	printBanner();
 	LOG_INFO("Poll interval : " << config::POLL_INTERVAL.count() << "s  (process scan)");
