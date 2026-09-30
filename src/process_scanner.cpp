@@ -139,18 +139,16 @@ next_pid:;
 	}
 
 	// ── 2. Steam AppID ──
-	// Always checked regardless of Lutris — both sources are returned so
-	// the multi-candidate resolver in main can pick whichever is a VN.
-	auto steamName = SteamDetector::getRunningGameName();
-	if (steamName) {
-		// Deduplicate: skip if a Lutris entry already carries the same name.
+	// Always checked regardless of Lutris — every running Steam game is
+	// returned so the multi-candidate resolver in main can pick whichever is a VN.
+	for (const auto& game : SteamDetector::getRunningGames()) {
+		// Deduplicate: skip if an entry already carries the same name.
 		bool alreadyPresent = std::any_of(results.begin(), results.end(),
-				[&](const VnProcess& p){ return p.gameName == *steamName; });
-		if (!alreadyPresent) {
-			int steamPid = SteamDetector::getRunningPid();
-			LOG_DEBUG("Steam-appid match: name=\"" << *steamName << "\"  pid=" << steamPid);
-			results.push_back({ *steamName, "", steamPid, "steam-appid", readStartTime(steamPid) });
-		}
+				[&](const VnProcess& p){ return p.gameName == game.name; });
+		if (alreadyPresent) continue;
+
+		LOG_DEBUG("Steam-appid match: name=\"" << game.name << "\"  appid=" << game.appId << "  pid=" << game.pid);
+		results.push_back({ game.name, "", game.pid, "steam-appid", readStartTime(game.pid), game.appId });
 	}
 
 	// ── Sort by process start time (earliest first) ──
