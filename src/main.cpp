@@ -193,6 +193,7 @@ int main(int argc, char* argv[])
 		std::string           matchedTitle;
 		std::string           matchedSource;
 		int64_t               matchedStarttime = 0;
+		int                   matchedAppId = 0;
 
 		if (candidates.size() > 1)
 			LOG_INFO("Checking " << candidates.size() << " candidates for a VN match");
@@ -217,6 +218,7 @@ int main(int argc, char* argv[])
 						matchedTitle  = title;
 						matchedSource = proc.source;
 						matchedStarttime = proc.starttime;
+						matchedAppId = proc.appId;
 						LOG_INFO("Cache hit (alias→" << cached->alias << "): \"" << vnInfo->title << "\"");
 						break;
 					}
@@ -230,6 +232,7 @@ int main(int argc, char* argv[])
 						matchedTitle  = title;
 						matchedSource = proc.source;
 						matchedStarttime = proc.starttime;
+						matchedAppId = proc.appId;
 						break;
 					}
 					LOG_INFO("No VNDB match for alias target \"" << aliasKey
@@ -251,6 +254,7 @@ int main(int argc, char* argv[])
 						matchedTitle  = title;
 						matchedSource = proc.source;
 						matchedStarttime = proc.starttime;
+						matchedAppId = proc.appId;
 						LOG_INFO("Cache hit: \"" << vnInfo->title << "\"");
 						break;
 					}
@@ -263,6 +267,7 @@ int main(int argc, char* argv[])
 						matchedTitle  = title;
 						matchedSource = proc.source;
 						matchedStarttime = proc.starttime;
+						matchedAppId = proc.appId;
 						break;
 					}
 					// Refresh failed — try next candidate
@@ -284,6 +289,7 @@ int main(int argc, char* argv[])
 				matchedTitle  = title;
 				matchedSource = proc.source;
 				matchedStarttime = proc.starttime;
+				matchedAppId = proc.appId;
 				LOG_INFO("VNDB match for \"" << title << "\": \"" << vnInfo->title << "\"");
 				break;
 			}
@@ -308,7 +314,7 @@ int main(int argc, char* argv[])
 						<< "  released=" << vnInfo->released
 						<< "  image_sexual=" << vnInfo->image_sexual
 						<< "  image_violence=" << vnInfo->image_violence);
-				rpc.setPresence(*vnInfo, matchedSource, matchedTitle, matchedStarttime);
+				rpc.setPresence(*vnInfo, matchedSource, matchedTitle, matchedStarttime, matchedAppId);
 				state.hasPresence      = true;
 				state.lastSearchTitle  = matchedTitle;
 				state.lastDetectSource = matchedSource;
