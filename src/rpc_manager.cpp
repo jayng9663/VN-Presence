@@ -220,7 +220,7 @@ void RpcManager::runCallbacks()
  * Uses alt_title as display title, suppresses explicit cover images,
  * and sets start_ts from Lutris or Steam playtime.
  **/
-void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const std::string& detectedName, int64_t processStartTicks)
+void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const std::string& detectedName, int64_t processStartTicks, int steamAppId)
 {
 	if (!d->connected) return;
 
@@ -239,9 +239,8 @@ void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const 
 	std::optional<int64_t> playtimeSeconds;
 
 	if (source == "steam-appid") {
-		int appId = SteamDetector::getRunningAppId();
-		if (appId > 0) {
-			int64_t mins = SteamDetector::getPlaytimeMinutes(appId);
+		if (steamAppId > 0) {
+			int64_t mins = SteamDetector::getPlaytimeMinutes(steamAppId);
 			if (mins > 0) {
 				playtimeSeconds = mins * 60;
 				LOG_DEBUG("Steam playtime: " << mins << "min  ("
