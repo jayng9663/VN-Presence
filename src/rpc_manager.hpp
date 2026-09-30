@@ -50,12 +50,13 @@ class RpcManager {
 		 * - Uses alt_title (original script) as the display title when available.
 		 * - Suppresses the cover image when image_sexual >= 2 or image_violence >= 2.
 		 * - source="lutris"      → playtime from Lutris DB
-		 * - source="steam-appid" → playtime from Steam localconfig.vdf
+		 * - source="steam-appid" → playtime from Steam localconfig.vdf (by steamAppId)
 		 * - Defers to runCallbacks() if called within the 16 s rate-limit window.
 		 **/
 		void setPresence(const VnInfo& vn, const std::string& source = "",
 				const std::string& detectedName = "",
-				int64_t processStartTicks = 0);
+				int64_t processStartTicks = 0,
+				int steamAppId = 0);
 
 		/**
 		 * Send a generic "Playing a Visual Novel" presence when no VNDB match
