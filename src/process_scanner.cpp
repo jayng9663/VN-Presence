@@ -71,7 +71,9 @@ std::vector<std::string> ProcessScanner::readCmdline(int pid)
 	f.exceptions(std::ios::badbit | std::ios::failbit);
 	std::string raw;
 	try {
-		raw.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+		std::ostringstream ss;
+		ss << f.rdbuf();  // bulk read — much faster than istreambuf_iterator
+		raw = std::move(ss).str();
 	} catch (const std::ios_base::failure& e) {
 		LOG_WARN("readCmdline pid=" << pid << " vanished mid-read: " << e.what());
 		return {};
