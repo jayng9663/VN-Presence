@@ -1,11 +1,18 @@
 #pragma once
+#include <cstdint>
 #include <filesystem>
-#include <optional>
 #include <string>
 #include <vector>
 
+/** A running Steam game found by SteamDetector::getRunningGames(). **/
+struct SteamGame {
+	int         appId = 0;  ///< Steam AppID
+	int         pid   = 0;  ///< First process found carrying this AppID
+	std::string name;       ///< Steam store name from appmanifest_<id>.acf
+};
+
 /**
- * Detects the currently running Steam game on Linux.
+ * Detects running Steam games on Linux.
  *
  * Strategy:
  *   1. Scan /proc/<pid>/environ for SteamAppId=<id>  (Steam sets this for
@@ -18,21 +25,11 @@
 class SteamDetector {
 	public:
 		/**
-		 * Return the Steam store name of the currently running game, or nullopt
-		 * when no Steam game is running or the ACF cannot be read.
+		 * Return every running Steam game (one entry per distinct AppID).
+		 * Games whose ACF cannot be read are omitted.  Empty when no Steam
+		 * game is running.
 		 **/
-		[[nodiscard]] static std::optional<std::string> getRunningGameName();
-
-		/**
-		 * Return the AppID of the currently running Steam game, or 0 if none.
-		 **/
-		[[nodiscard]] static int getRunningAppId();
-
-		/**
-		 * Return the PID of the currently running Steam game process, or 0 if none.
-		 * The same /proc scan used by getRunningAppId(); shares a helper internally.
-		 **/
-		[[nodiscard]] static int getRunningPid();
+		[[nodiscard]] static std::vector<SteamGame> getRunningGames();
 
 		/**
 		 * Read total playtime for a given AppID from Steam local userdata.
