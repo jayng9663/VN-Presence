@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -128,11 +129,14 @@ std::vector<fs::path> SteamDetector::libraryPaths()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Internal: scan /proc for a Steam game process.
-// Returns {appId, pid}, or {0, 0} if nothing is running.
+// Internal: scan /proc for every running Steam game process.
+// Returns one {appId, pid} per distinct AppID (first PID seen for that AppID),
+// or an empty vector if nothing is running.
 // ─────────────────────────────────────────────────────────────────────────────
-static std::pair<int,int> findRunningAppAndPid()
+static std::vector<std::pair<int,int>> findRunningAppsAndPids()
 {
+	std::vector<std::pair<int,int>> found;
+
 	// Steam infrastructure AppIDs — skip these
 	static const std::vector<int> infraIds = {
 		1070560,  // Steam Linux Runtime
@@ -179,65 +183,64 @@ static std::pair<int,int> findRunningAppAndPid()
 			continue;
 		}
 
+		// A game usually spans several processes (reaper, wine, the exe) that
+		// all carry the same SteamAppId — keep only the first one seen.
+		bool seen = std::any_of(found.begin(), found.end(),
+				[&](const std::pair<int,int>& f){ return f.first == appId; });
+		if (seen) continue;
+
 		int pid = 0;
 		try { pid = std::stoi(name); } catch (...) {}
 
 		LOG_DEBUG("Steam: found AppId=" << appId << "  pid=" << pid);
-		return {appId, pid};
+		found.emplace_back(appId, pid);
 	}
-	return {0, 0};
+	return found;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SteamDetector::getRunningAppId
-// ─────────────────────────────────────────────────────────────────────────────
-int SteamDetector::getRunningAppId()
+// ─── SteamDetector::getRunningGames ───
+std::vector<SteamGame> SteamDetector::getRunningGames()
 {
-	return findRunningAppAndPid().first;
-}
+	std::vector<SteamGame> games;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SteamDetector::getRunningPid
-// ─────────────────────────────────────────────────────────────────────────────
-int SteamDetector::getRunningPid()
-{
-	return findRunningAppAndPid().second;
-}
-
-// ─── SteamDetector::getRunningGameName ───
-std::optional<std::string> SteamDetector::getRunningGameName()
-{
-	int appId = getRunningAppId();
-	if (appId == 0) return std::nullopt;
+	auto running = findRunningAppsAndPids();
+	if (running.empty()) return games;
 
 	auto libs = libraryPaths();
 	if (libs.empty()) {
 		LOG_DEBUG("Steam: no library paths found");
-		return std::nullopt;
+		return games;
 	}
 
-	std::string acfName = "appmanifest_" + std::to_string(appId) + ".acf";
+	// Log each AppId → name mapping once, not on every poll
+	static std::map<int, std::string> loggedNames;
 
-	for (const auto& lib : libs) {
-		fs::path acfPath = lib / acfName;
-		std::string acf = readFile(acfPath);
-		if (acf.empty()) continue;
+	for (const auto& [appId, pid] : running) {
+		std::string acfName = "appmanifest_" + std::to_string(appId) + ".acf";
+		std::string name;
 
-		std::string name = parseVdfField(acf, "name");
-		if (!name.empty()) {
-			static int   lastAppId = 0;
-			static std::string lastName;
-			if (appId != lastAppId || name != lastName) {
-				LOG_INFO("Steam: AppId=" << appId << "  name=\"" << name << "\"");
-				lastAppId = appId;
-				lastName  = name;
-			}
-			return name;
+		for (const auto& lib : libs) {
+			std::string acf = readFile(lib / acfName);
+			if (acf.empty()) continue;
+			name = parseVdfField(acf, "name");
+			if (!name.empty()) break;
 		}
+
+		if (name.empty()) {
+			LOG_WARN("Steam: AppId=" << appId << " found in environ but no ACF in any library");
+			continue;
+		}
+
+		auto it = loggedNames.find(appId);
+		if (it == loggedNames.end() || it->second != name) {
+			LOG_INFO("Steam: AppId=" << appId << "  name=\"" << name << "\"");
+			loggedNames[appId] = name;
+		}
+
+		games.push_back({ appId, pid, name });
 	}
 
-	LOG_WARN("Steam: AppId=" << appId << " found in environ but no ACF in any library");
-	return std::nullopt;
+	return games;
 }
 
 static std::string extractBlock3(const std::string& s, size_t openBrace)
