@@ -5,7 +5,9 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -20,10 +22,11 @@ namespace {
 
 	// Read an entire file into a string.
 	std::string readFile(const fs::path& p) {
-		std::ifstream f(p);
+		std::ifstream f(p, std::ios::binary);
 		if (!f) return {};
-		return { std::istreambuf_iterator<char>(f),
-			std::istreambuf_iterator<char>() };
+		std::ostringstream ss;
+		ss << f.rdbuf();  // bulk read — much faster than istreambuf_iterator
+		return std::move(ss).str();
 	}
 
 	// Split a NUL-separated /proc/<pid>/environ blob into KEY=VALUE pairs.
@@ -34,9 +37,9 @@ namespace {
 		while (i < blob.size()) {
 			size_t end = blob.find('\0', i);
 			if (end == std::string::npos) end = blob.size();
-			std::string entry = blob.substr(i, end - i);
-			if (entry.rfind(prefix, 0) == 0)
-				return entry.substr(prefix.size());
+			// Compare in place — no per-entry copy
+			if (end - i >= prefix.size() && blob.compare(i, prefix.size(), prefix) == 0)
+				return blob.substr(i + prefix.size(), end - i - prefix.size());
 			i = end + 1;
 		}
 		return {};
@@ -84,6 +87,10 @@ std::string SteamDetector::parseVdfField(const std::string& content,
 // ─────────────────────────────────────────────────────────────────────────────
 std::vector<fs::path> SteamDetector::libraryPaths()
 {
+	// Library list rarely changes — read libraryfolders.vdf once and reuse it
+	static std::vector<fs::path> cached;
+	if (!cached.empty()) return cached;
+
 	std::vector<fs::path> paths;
 
 	// Default Steam install location
@@ -125,6 +132,7 @@ std::vector<fs::path> SteamDetector::libraryPaths()
 		}
 	}
 
+	cached = paths;
 	return paths;
 }
 
@@ -156,19 +164,8 @@ static std::vector<std::pair<int,int>> findRunningAppsAndPids()
 		const std::string name = entry.path().filename().string();
 		if (name.empty() || !std::isdigit((unsigned char)name[0])) continue;
 
-		fs::path environPath = entry.path() / "environ";
-		std::ifstream f(environPath, std::ios::binary);
-		if (!f) continue;
-
-		std::string blob;
-		try {
-			blob.assign(std::istreambuf_iterator<char>(f),
-					std::istreambuf_iterator<char>());
-		} catch (const std::ios_base::failure&) {
-			continue;
-		} catch (...) {
-			continue;
-		}
+		std::string blob = readFile(entry.path() / "environ");
+		if (blob.empty()) continue;
 
 		std::string val = environValue(blob, "SteamAppId");
 		if (val.empty() || val == "0") continue;
@@ -243,7 +240,8 @@ std::vector<SteamGame> SteamDetector::getRunningGames()
 	return games;
 }
 
-static std::string extractBlock3(const std::string& s, size_t openBrace)
+// Returns a view into `s` — no copy of the (possibly multi-MB) block.
+static std::string_view extractBlock3(std::string_view s, size_t openBrace)
 {
 	int depth = 1;
 	size_t i  = openBrace + 1;
@@ -290,19 +288,20 @@ int64_t SteamDetector::getPlaytimeMinutes(int appId)
 			size_t appsOpen = vdf.find('{', appsPos + 6);
 			if (appsOpen == std::string::npos) { ++appsPos; continue; }
 
-			std::string appsBlock = extractBlock3(vdf, appsOpen);
+			std::string_view appsBlock = extractBlock3(vdf, appsOpen);
 
 			size_t apos = 0;
-			while ((apos = appsBlock.find(appNeedle, apos)) != std::string::npos) {
+			while ((apos = appsBlock.find(appNeedle, apos)) != std::string_view::npos) {
 				bool preOk  = (apos == 0 || !std::isdigit((unsigned char)appsBlock[apos - 1]));
 				size_t aend = apos + appNeedle.size();
 				bool postOk = (aend >= appsBlock.size() || !std::isdigit((unsigned char)appsBlock[aend]));
 
 				if (preOk && postOk) {
 					size_t appOpen = appsBlock.find('{', aend);
-					if (appOpen == std::string::npos) { ++apos; continue; }
+					if (appOpen == std::string_view::npos) { ++apos; continue; }
 
-					std::string appBlock = extractBlock3(appsBlock, appOpen);
+					// Single app block is small — copy it for parseVdfField
+					std::string appBlock(extractBlock3(appsBlock, appOpen));
 
 					for (const auto& key : playtimeKeys) {
 						std::string pt = parseVdfField(appBlock, key);
