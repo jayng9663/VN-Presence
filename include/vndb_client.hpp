@@ -69,6 +69,12 @@ class VndbClient {
 		 **/
 		[[nodiscard]] bool lastSearchFailed() const noexcept { return lastFailed_; }
 
+		/**
+		 * Fetch a VN directly by its VNDB ID (e.g. "v1234"), skipping the
+		 * title similarity check.  Used to refresh cached entries.
+		 **/
+		[[nodiscard]] std::optional<VnInfo> fetchById(const std::string& vnId);
+
 	private:
 		bool lastFailed_ = false;
 
@@ -76,9 +82,6 @@ class VndbClient {
 
 		/** Search the /release endpoint and return the linked VN, or nullopt. **/
 		[[nodiscard]] std::optional<VnInfo> searchViaRelease(const std::string& title);
-
-		/** Fetch a VN directly by its VNDB ID (e.g. "v1234"). **/
-		[[nodiscard]] std::optional<VnInfo> fetchById(const std::string& vnId);
 
 		static std::string buildRequestBody(const std::string& title);
 		static std::string buildReleaseRequestBody(const std::string& title);
