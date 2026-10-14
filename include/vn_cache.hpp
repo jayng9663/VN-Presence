@@ -70,12 +70,6 @@ class VnCache {
 		/** Store a successful VNDB match keyed by the detected game name. **/
 		void store(const std::string& key, const VnInfo& vn);
 
-		/** Store a "no match" placeholder (legacy — prefer ignoreList.add()). **/
-		void storeNoMatch(const std::string& key);
-
-		/** Store a plain alias entry (key → aliasTarget, no VnInfo yet). **/
-		void storeAlias(const std::string& key, const std::string& aliasTarget);
-
 		/**
 		 * Populate an alias row in-place after a successful VNDB lookup.
 		 * The alias column is preserved so the redirect remains visible in the CSV.
