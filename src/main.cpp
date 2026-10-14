@@ -14,6 +14,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <unordered_set>
 
 static std::atomic<bool> g_running{true};
 static void signalHandler(int) { g_running = false; }
@@ -30,6 +31,7 @@ struct AppState {
 	std::string candidateSetKey;    ///< debounce key: sorted candidate names joined by '|'
 	int         stablePollCount = 0;
 	bool        hasPresence     = false;
+	std::unordered_set<std::string> noMatch; ///< titles VNDB had no match for (this run only)
 };
 
 /** Print the startup banner and warn if APP_ID is unset. **/
@@ -135,10 +137,10 @@ int main(int argc, char* argv[])
 		// ── Gather all running game candidates (Lutris + Steam) ──
 		auto candidates = detectCandidates();
 
-		// Remove entries the ignore list has already dismissed
+		// Remove entries the ignore list or an earlier no-match has dismissed
 		candidates.erase(
 				std::remove_if(candidates.begin(), candidates.end(),
-					[&](const VnProcess& p){ return ignoreList.matches(p.gameName); }),
+					[&](const VnProcess& p){ return state.noMatch.count(p.gameName) || ignoreList.matches(p.gameName); }),
 				candidates.end());
 
 		// ── Nothing running ──
@@ -190,8 +192,8 @@ int main(int argc, char* argv[])
 
 		// ── Resolve: iterate candidates in priority order, stop at first VN ──
 		// Cache hits are free; VNDB queries are issued for cache-miss candidates
-		// one at a time.  Non-matches are added to the ignore list so subsequent
-		// polls skip them automatically, letting the next candidate be tried.
+		// one at a time.  Non-matches are remembered for this run (not written to
+		// ignore.txt) so subsequent polls skip them, letting the next candidate be tried.
 		std::optional<VnInfo> vnInfo;
 		std::string           matchedTitle;
 		std::string           matchedSource;
@@ -243,8 +245,8 @@ int main(int argc, char* argv[])
 						continue;
 					}
 					LOG_INFO("No VNDB match for alias target \"" << aliasKey
-							<< "\" — adding \"" << title << "\" to ignore list");
-					ignoreList.add(title);
+							<< "\" — skipping \"" << title << "\" until restart");
+					state.noMatch.insert(title);
 					continue;
 				}
 
@@ -283,13 +285,11 @@ int main(int argc, char* argv[])
 					break;
 				}
 
-				// Stale no-match row → migrate to ignore list, try next
-				LOG_INFO("Stale no-match for \"" << title << "\" — migrating to ignore list");
-				ignoreList.add(title);
-				continue;
+				// Row without a VNDB id (cleared by the user, or an old no-match
+				// row) — fall through and query VNDB again
 			}
 
-			// ── Cache miss: query VNDB ──
+			// ── Cache miss (or row without a VNDB id): query VNDB ──
 			LOG_INFO("Cache miss — querying VNDB for candidate \""
 					<< title << "\"");
 			vnInfo = vndb.search(title);
@@ -307,10 +307,10 @@ int main(int argc, char* argv[])
 				LOG_WARN("VNDB request failed for \"" << title << "\" — will retry next poll");
 				continue;
 			}
-			// No VNDB match — add to ignore list and try the next candidate
+			// No VNDB match — skip it for this run and try the next candidate
 			LOG_INFO("No VNDB match for \"" << title
-					<< "\" — adding to ignore list, trying next candidate");
-			ignoreList.add(title);
+					<< "\" — skipping until restart, trying next candidate");
+			state.noMatch.insert(title);
 		}
 
 		// ── Same VN still active — nothing to update ──
