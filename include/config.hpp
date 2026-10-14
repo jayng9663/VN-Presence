@@ -72,6 +72,9 @@ namespace config {
 	/** Discord asset key for the small image (VNDB logo). Upload to Dev Portal. **/
 	inline constexpr std::string_view RPC_SMALL_IMG_KEY  = "vndb_logo";
 
+	/** Append the VNDB rating to the cover's hover text, e.g. "CLANNAD — ★ 8.73". **/
+	inline constexpr bool RPC_SHOW_RATING = true;
+
 	/** Tooltip text for the small image. **/
 	inline constexpr std::string_view RPC_SMALL_IMG_TEXT = "VNDB";
 
