@@ -51,6 +51,12 @@ namespace config {
 	/** How long to cache an in-memory VNDB result before re-querying. **/
 	inline constexpr std::chrono::hours VNDB_CACHE_TTL{24};
 
+	/** Wait before retrying a title after a VNDB network/server error.
+	 * Starts at VNDB_RETRY_MIN and doubles on each failure, up to VNDB_RETRY_MAX.
+	 **/
+	inline constexpr std::chrono::seconds VNDB_RETRY_MIN{30};
+	inline constexpr std::chrono::seconds VNDB_RETRY_MAX{600};
+
 	/** Number of consecutive polls a title must be stable before acting on it. **/
 	inline constexpr int STABLE_TITLE_POLLS = 2;
 
