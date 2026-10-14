@@ -34,6 +34,8 @@ static std::string      s_smallImageKey;
 static std::string      s_smallImageText;
 static std::string      s_buttonLabel;
 static std::string      s_buttonUrl;
+static std::string      s_button2Label;
+static std::string      s_button2Url;
 static int64_t          s_startTimestamp  = 0;
 static bool             s_showImage       = false;
 static bool             s_pendingUpdate   = false;
@@ -111,6 +113,8 @@ static void applyLocked() {
 
 	if (!s_buttonLabel.empty() && !s_buttonUrl.empty())
 		presence.setButton1(s_buttonLabel, s_buttonUrl);
+	if (!s_button2Label.empty() && !s_button2Url.empty())
+		presence.setButton2(s_button2Label, s_button2Url);
 
 	if (s_showImage) {
 		presence
@@ -333,6 +337,11 @@ void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const 
 
 	bool showImage = !vn.image_url.empty() && !vn.isImageExplicit();
 
+	// Second button: Steam store page for games detected through Steam
+	std::string storeUrl = (source == "steam-appid" && steamAppId > 0)
+		? "https://store.steampowered.com/app/" + std::to_string(steamAppId)
+		: "";
+
 	// ── Resolve playtime → start timestamp ──
 	// Lutris source: query Lutris SQLite DB by title
 	// Steam source:  read localconfig.vdf by AppID (minutes → seconds)
@@ -397,6 +406,7 @@ void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const 
 		&& s_state         == state
 		&& s_largeImageKey == (showImage ? vn.image_url : "")
 		&& s_buttonUrl     == vn.vndb_url
+		&& s_button2Url    == storeUrl
 		&& !s_pendingUpdate;
 	if (same) {
 		LOG_DEBUG("Presence unchanged — skipping update");
@@ -415,6 +425,8 @@ void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const 
 	s_smallImageText = std::string(config::RPC_SMALL_IMG_TEXT);
 	s_buttonLabel    = "View on VNDB";
 	s_buttonUrl      = vn.vndb_url;
+	s_button2Label   = storeUrl.empty() ? "" : "Steam Store";
+	s_button2Url     = storeUrl;
 	s_startTimestamp = startTs;
 	s_showImage      = showImage;
 	s_pendingClear   = false;
@@ -457,6 +469,8 @@ void RpcManager::setGenericPresence(const std::string& windowTitle)
 	s_smallImageText = std::string(config::RPC_SMALL_IMG_TEXT);
 	s_buttonLabel    = "";
 	s_buttonUrl      = "";
+	s_button2Label   = "";
+	s_button2Url     = "";
 	s_startTimestamp = wallSeconds();
 	s_showImage      = true;
 	s_pendingClear   = false;
