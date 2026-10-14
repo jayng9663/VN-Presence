@@ -28,10 +28,11 @@ struct VnInfo {
 
 	/**
 	 * Return true when the cover image should be suppressed in Discord.
-	 * Ratings are only trusted when backed by at least IMAGE_VOTECOUNT votes.
+	 * Ratings are only trusted when backed by at least IMAGE_VOTECOUNT votes;
+	 * covers with fewer votes are suppressed to be safe.
 	 **/
 	[[nodiscard]] bool isImageExplicit() const noexcept {
-		if (image_votecount < config::IMAGE_VOTECOUNT) return false;
+		if (image_votecount < config::IMAGE_VOTECOUNT) return true;
 		return image_sexual >= config::IMAGE_SEXUAL || image_violence >= config::IMAGE_VIOLENCE;
 	}
 };
