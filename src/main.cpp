@@ -14,6 +14,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <unordered_set>
 
 static std::atomic<bool> g_running{true};
@@ -32,7 +33,31 @@ struct AppState {
 	int         stablePollCount = 0;
 	bool        hasPresence     = false;
 	std::unordered_set<std::string> noMatch; ///< titles VNDB had no match for (this run only)
+
+	struct Retry {
+		std::chrono::steady_clock::time_point at;
+		std::chrono::seconds                  delay{0};
+	};
+	std::unordered_map<std::string, Retry> retry; ///< titles waiting to retry after a VNDB error
 };
+
+/** True while `title` is waiting out its retry delay after a VNDB error. **/
+static bool retryPending(const AppState& state, const std::string& title)
+{
+	auto it = state.retry.find(title);
+	if (it == state.retry.end() || std::chrono::steady_clock::now() >= it->second.at) return false;
+	LOG_DEBUG("Waiting to retry VNDB for \"" << title << "\"");
+	return true;
+}
+
+/** Record a failed VNDB request for `title`; the retry delay doubles each time. **/
+static void noteVndbFailure(AppState& state, const std::string& title)
+{
+	auto& r = state.retry[title];
+	r.delay = r.delay.count() == 0 ? config::VNDB_RETRY_MIN : std::min(r.delay * 2, config::VNDB_RETRY_MAX);
+	r.at    = std::chrono::steady_clock::now() + r.delay;
+	LOG_WARN("VNDB request failed for \"" << title << "\" — retrying in " << r.delay.count() << "s");
+}
 
 /** Print the startup banner and warn if APP_ID is unset. **/
 static void printBanner()
@@ -221,10 +246,12 @@ int main(int argc, char* argv[])
 				if (!cached->alias.empty() && !cached->hasMatch()) {
 					// Alias target not yet resolved — query VNDB now
 					std::string aliasKey = cached->alias;
+					if (retryPending(state, title)) continue;
 					LOG_INFO("Alias \"" << title
 							<< "\" → querying VNDB as \"" << aliasKey << "\"");
 					vnInfo = vndb.search(aliasKey);
 					if (vnInfo) {
+						state.retry.erase(title);
 						cache.storeAliasFilled(title, aliasKey, *vnInfo);
 						matchedTitle  = title;
 						matchedSource = proc.source;
@@ -233,9 +260,10 @@ int main(int argc, char* argv[])
 						break;
 					}
 					if (vndb.lastSearchFailed()) {
-						LOG_WARN("VNDB request failed for alias \"" << aliasKey << "\" — will retry next poll");
+						noteVndbFailure(state, title);
 						continue;
 					}
+					state.retry.erase(title);
 					LOG_INFO("No VNDB match for alias target \"" << aliasKey
 							<< "\" — skipping \"" << title << "\" until restart");
 					state.noMatch.insert(title);
@@ -290,10 +318,12 @@ int main(int argc, char* argv[])
 			}
 
 			// ── Cache miss (or row without a VNDB id): query VNDB ──
+			if (retryPending(state, title)) continue;
 			LOG_INFO("Cache miss — querying VNDB for candidate \""
 					<< title << "\"");
 			vnInfo = vndb.search(title);
 			if (vnInfo) {
+				state.retry.erase(title);
 				cache.store(title, *vnInfo);
 				matchedTitle  = title;
 				matchedSource = proc.source;
@@ -304,10 +334,11 @@ int main(int argc, char* argv[])
 			}
 			// Network / server error — don't ignore a title we couldn't check
 			if (vndb.lastSearchFailed()) {
-				LOG_WARN("VNDB request failed for \"" << title << "\" — will retry next poll");
+				noteVndbFailure(state, title);
 				continue;
 			}
 			// No VNDB match — skip it for this run and try the next candidate
+			state.retry.erase(title);
 			LOG_INFO("No VNDB match for \"" << title
 					<< "\" — skipping until restart, trying next candidate");
 			state.noMatch.insert(title);
