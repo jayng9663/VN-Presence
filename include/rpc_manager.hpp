@@ -71,8 +71,9 @@ class RpcManager {
 		void clearPresence();
 
 		/**
-		 * Send a heartbeat to Discord and flush any pending deferred update or
-		 * clear.  Must be called periodically (≈ every POLL_INTERVAL seconds).
+		 * Flush any pending deferred update or clear once the rate limit
+		 * allows.  Must be called periodically (≈ every POLL_INTERVAL seconds).
+		 * Socket I/O itself runs on the discord-presence library's IO thread.
 		 **/
 		void runCallbacks();
 
