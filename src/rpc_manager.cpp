@@ -176,18 +176,20 @@ void RpcManager::disconnect()
 bool RpcManager::isConnected() const { return d->connected; }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// runCallbacks — heartbeat + flush any pending update/clear
+// runCallbacks — flush any pending update/clear
 // ─────────────────────────────────────────────────────────────────────────────
 /**
- * Send a heartbeat and flush any pending deferred update or clear.
+ * Flush any pending deferred update or clear once the rate limit allows.
  * Call this every POLL_INTERVAL seconds from the main loop.
  **/
 void RpcManager::runCallbacks()
 {
 	if (!d->connected) return;
 
-	LOG_DEBUG("RPCManager::update() heartbeat");
-	discord::RPCManager::get().update();
+	// Don't call discord::RPCManager::update() here — the library's own IO
+	// thread already does (every 500 ms), and update() isn't thread-safe:
+	// calling it from two threads can open two IPC sockets at startup and
+	// leave the handshake stuck, so presence never shows up in Discord.
 
 	std::lock_guard<std::mutex> lock(s_mutex);
 
