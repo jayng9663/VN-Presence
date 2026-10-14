@@ -157,12 +157,16 @@ namespace {
 } // anonymous namespace
 
 // ─── Generic HTTP POST ───
-/** POST a JSON body and return the response body, or "" on any error. **/
-static std::string httpPost(const std::string& url, const std::string& requestBody)
+/**
+ * POST a JSON body and return the response body, or "" on any error.
+ * Sets `failed` on errors worth retrying later (network, HTTP 429 / 5xx).
+ **/
+static std::string httpPost(const std::string& url, const std::string& requestBody, bool& failed)
 {
 	CURL* curl = curl_easy_init();
 	if (!curl) {
 		LOG_ERR("curl_easy_init() failed");
+		failed = true;
 		return {};
 	}
 
@@ -196,10 +200,12 @@ static std::string httpPost(const std::string& url, const std::string& requestBo
 
 	if (res != CURLE_OK) {
 		LOG_ERR("CURL error: " << curl_easy_strerror(res));
+		failed = true;
 		return {};
 	}
 	if (httpCode != 200) {
 		LOG_ERR("HTTP " << httpCode << " from " << url);
+		if (httpCode == 429 || httpCode >= 500) failed = true;
 		if (!responseBody.empty()) LOG_DEBUG("Response body: " << responseBody);
 		return {};
 	}
@@ -218,6 +224,7 @@ VndbClient::~VndbClient() {
 
 std::optional<VnInfo> VndbClient::search(const std::string& title)
 {
+	lastFailed_ = false;
 	auto result = doSearch(title);
 	if (!result) {
 		LOG_INFO("VN search failed — trying release search for \"" << title << "\"");
@@ -230,7 +237,7 @@ std::optional<VnInfo> VndbClient::search(const std::string& title)
 /** Issue an HTTP POST to the VNDB Kana API and return the parsed result. **/
 std::optional<VnInfo> VndbClient::doSearch(const std::string& title)
 {
-	std::string resp = httpPost(std::string(config::VNDB_API_URL), buildRequestBody(title));
+	std::string resp = httpPost(std::string(config::VNDB_API_URL), buildRequestBody(title), lastFailed_);
 	if (resp.empty()) return std::nullopt;
 	return parseResponse(resp, title);
 }
@@ -291,7 +298,7 @@ std::string VndbClient::buildReleaseRequestBody(const std::string& title)
 // ─── Search via /release, follow vns[].id back to the VN ───
 std::optional<VnInfo> VndbClient::searchViaRelease(const std::string& title)
 {
-	std::string resp = httpPost(std::string(config::VNDB_RELEASE_API_URL), buildReleaseRequestBody(title));
+	std::string resp = httpPost(std::string(config::VNDB_RELEASE_API_URL), buildReleaseRequestBody(title), lastFailed_);
 	if (resp.empty()) return std::nullopt;
 
 	auto first = firstResult(resp);
@@ -323,7 +330,7 @@ std::optional<VnInfo> VndbClient::fetchById(const std::string& vnId)
 		{"fields",   config::VNDB_FIELDS},
 		{"results",  1},
 	};
-	std::string resp = httpPost(std::string(config::VNDB_API_URL), body.dump());
+	std::string resp = httpPost(std::string(config::VNDB_API_URL), body.dump(), lastFailed_);
 	if (resp.empty()) return std::nullopt;
 
 	auto first = firstResult(resp);
