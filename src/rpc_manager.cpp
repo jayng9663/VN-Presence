@@ -8,9 +8,13 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <mutex>
 #include <string>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 // Discord silently drops updates faster than ~15s apart.
@@ -42,6 +46,15 @@ static bool             s_hasPresence     = false;
 // Set by the onReady callback (library IO thread) — Discord (re)connected,
 // so the current presence has to be sent again.
 static std::atomic<bool> s_resend{false};
+
+// Connection state reported by the library callbacks (IO thread)
+static std::atomic<bool> s_ready{false};   ///< READY received on the current connection
+static std::atomic<bool> s_lost{false};    ///< connection closed since the last check
+
+// How long to wait for Discord's READY before restarting the library.  Must stay
+// well above the library's reconnect backoff (up to 60 s before it connects, and
+// again before it reads READY), or we'd restart it before READY can arrive.
+static constexpr auto READY_TIMEOUT = std::chrono::minutes(3);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers (all must be called with s_mutex held)
@@ -134,10 +147,56 @@ static bool pushOrDefer() {
 	return true;
 }
 
+/**
+ * Return true when a Discord IPC socket accepts connections.  Tries the same
+ * paths as discord-presence (third_party/.../platform/unix.hpp).
+ *
+ * Why: the library can't recover from a failed attempt — sun_path isn't
+ * NUL-terminated between tries and the failed socket leaks — so once it has
+ * tried while Discord was down, it never connects.  We only start it when
+ * Discord is listening, and restart it after a lost connection.
+ **/
+static bool discordListening()
+{
+	std::string dir;
+	if (const char* xdg = std::getenv("XDG_RUNTIME_DIR")) {
+		dir = xdg;
+	} else {
+		std::string runUser = "/run/user/" + std::to_string(::getuid());
+		if (::access(runUser.c_str(), F_OK) == 0) {
+			dir = runUser;
+		} else {
+			const char* tmp = std::getenv("TMPDIR");
+			if (!tmp) tmp = std::getenv("TMP");
+			if (!tmp) tmp = std::getenv("TEMP");
+			dir = tmp ? tmp : "/tmp";
+		}
+	}
+
+	for (const char* sub : { "", "/snap.discord", "/app/com.discordapp.Discord", "/app/com.discordapp.DiscordCanary" }) {
+		for (int i = 0; i < 10; ++i) {
+			std::string path = dir + sub + "/discord-ipc-" + std::to_string(i);
+			sockaddr_un addr{};
+			addr.sun_family = AF_UNIX;
+			if (path.size() >= sizeof(addr.sun_path)) continue;
+			std::memcpy(addr.sun_path, path.c_str(), path.size() + 1);
+
+			int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+			if (fd == -1) return false;
+			bool ok = ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0;
+			::close(fd);
+			if (ok) return true;
+		}
+	}
+	return false;
+}
+
 // ─── PIMPL ───
 struct RpcManager::Impl {
 	std::string appId;
-	bool        connected = false;
+	bool        connected = false;   ///< library initialised (Discord was listening)
+	bool        waitingLogged = false;
+	std::chrono::steady_clock::time_point startedAt{};
 	explicit Impl(std::string id) : appId(std::move(id)) {}
 };
 
@@ -145,19 +204,33 @@ RpcManager::RpcManager(const std::string& appId) : d(new Impl(appId)) {}
 RpcManager::~RpcManager() { disconnect(); delete d; }
 
 // ─── connect / disconnect ───
-/** Open the Discord IPC socket and register event callbacks. **/
+/**
+ * Register event callbacks and start the library — but only once Discord is
+ * listening (see discordListening()).  Returns false while Discord is down.
+ **/
 bool RpcManager::connect()
 {
 	if (d->connected) return true;
+
+	if (!discordListening()) {
+		if (!d->waitingLogged) LOG_INFO("Waiting for Discord to start…");
+		d->waitingLogged = true;
+		return false;
+	}
+	d->waitingLogged = false;
+	s_ready = false;
+	s_lost  = false;
 
 	discord::RPCManager::get()
 		.setClientID(d->appId)
 		.onReady([](discord::User const& user) {
 				LOG_INFO("Connected to Discord as " << user.username);
+				s_ready  = true;
 				s_resend = true;
 				})
 	.onDisconnected([](int code, std::string_view msg) {
 			LOG_INFO("Disconnected from Discord (" << code << "): " << msg);
+			s_lost = true;
 			})
 	.onErrored([](int code, std::string_view msg) {
 			LOG_ERR("Discord RPC error " << code << ": " << msg);
@@ -166,6 +239,7 @@ bool RpcManager::connect()
 	LOG_DEBUG("Calling RPCManager::initialize() for app=" << d->appId);
 	discord::RPCManager::get().initialize();
 	d->connected = true;
+	d->startedAt = std::chrono::steady_clock::now();
 	LOG_INFO("RPCManager initialized (app=" << d->appId << ")");
 	return true;
 }
@@ -191,6 +265,16 @@ bool RpcManager::isConnected() const { return d->connected; }
 void RpcManager::runCallbacks()
 {
 	if (!d->connected) return;
+
+	// Connection lost, or no READY in time — shut the library down so the
+	// next connect() starts from a fresh socket (it can't reconnect itself).
+	bool noReady = !s_ready && std::chrono::steady_clock::now() - d->startedAt > READY_TIMEOUT;
+	if (s_lost.exchange(false) || noReady) {
+		LOG_INFO((noReady ? "No answer from Discord — reconnecting" : "Discord connection lost — waiting for it to come back"));
+		discord::RPCManager::get().shutdown();
+		d->connected = false;
+		return;
+	}
 
 	// Don't call discord::RPCManager::update() here — the library's own IO
 	// thread already does (every 500 ms), and update() isn't thread-safe:
@@ -385,9 +469,17 @@ bool RpcManager::hasPending() const {
 /** Clear the Discord presence (deferred if within rate-limit window). **/
 void RpcManager::clearPresence()
 {
-	if (!d->connected) return;
-
 	std::lock_guard<std::mutex> lock(s_mutex);
+
+	// Not connected — nothing to send, but forget the presence so it isn't
+	// re-sent when Discord comes back
+	if (!d->connected) {
+		s_hasPresence   = false;
+		s_pendingUpdate = false;
+		s_pendingClear  = false;
+		s_lastTitle.clear();
+		return;
+	}
 
 	if (!s_hasPresence && !s_pendingUpdate && !s_pendingClear) {
 		LOG_DEBUG("clearPresence: already clear");
