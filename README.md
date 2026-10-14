@@ -25,7 +25,7 @@ Discord Rich Presence daemon for Visual Novels on Linux. Detects games launched 
 - Detects games from **Lutris** (exact name from wrapper) and **Steam** (AppID → ACF → store name)
 - Fuzzy title matching against VNDB using trigram similarity + full-width character normalisation
 - Fallback: searches the **release** endpoint and follows the relation back to the parent VN
-- Suppresses explicit cover images (sexual ≥ 1.80 or violence ≥ 1.80) — title still shows
+- Suppresses explicit cover images (sexual ≥ 1.80 or violence ≥ 1.80, or fewer than 5 image votes) — title still shows
 - Playtime from **Lutris DB** (`pga.db`) or **Steam VDF** (`localconfig.vdf`) — no API key needed
 - Discord elapsed timer reflects **prior playtime + current session**, not just this session
 - Editable `cache.csv` for aliases, hard-links, and SKIP entries — reloaded live while running
@@ -185,6 +185,7 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 
 > [!WARNING]
 > If a title has no VNDB match, the daemon automatically adds it to ignore.txt after the first failed query.
+> Network or server errors (offline, HTTP 429/5xx) don't count — the title is simply retried on the next poll.
 > It will not be retried on subsequent polls. To force a retry, remove the entry from ignore.txt.
 > To permanently suppress it without querying VNDB at all, add a SKIP entry to cache.csv instead.
 
@@ -207,6 +208,7 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 | `DISCORD_APP_ID` | `1482345564698841189` | Discord application ID |
 | `IMAGE_SEXUAL` | `1.80` | Maximum threshold value for sexual before being suppressed |
 | `IMAGE_VIOLENCE` | `1.80` | Maximum threshold value for violence before being suppressed |
+| `IMAGE_VOTECOUNT` | `5` | Covers with fewer image votes than this are suppressed (rating not trusted yet) |
 | `VNDB_MIN_SIMILARITY` | `0.35` | Minimum trigram score to accept a match |
 | `POLL_INTERVAL` | `5s` | How often to scan for running processes |
 | `VNDB_CACHE_TTL` | `24h` | How long a `cache.csv` or `cache.db` entry is valid before re-querying VNDB |
@@ -250,6 +252,7 @@ cmake --build build
 ```bash
 ./vn-discord-rpc            # normal
 ./vn-discord-rpc --verbose  # debug logging
+./vn-discord-rpc --log-file /path/to/vn.log  # also log to a file (default: ./vn-presence.log)
 ./vn-discord-rpc --help
 ```
 
