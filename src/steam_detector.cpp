@@ -29,6 +29,24 @@ namespace {
 		return std::move(ss).str();
 	}
 
+	// Every Steam install that exists: native, the ~/.steam/steam link, and
+	// Flatpak.  Paths are canonicalised so a symlinked install isn't listed twice.
+	std::vector<fs::path> steamRoots() {
+		std::string home = getEnv("HOME");
+		std::vector<fs::path> roots;
+		for (const char* rel : { ".local/share/Steam", ".steam/steam",
+				".var/app/com.valvesoftware.Steam/.local/share/Steam" }) {
+			std::error_code ec;
+			fs::path p = fs::path(home) / rel;
+			if (!fs::exists(p, ec)) continue;
+			fs::path canon = fs::weakly_canonical(p, ec);
+			if (ec) canon = p;
+			if (std::find(roots.begin(), roots.end(), canon) == roots.end())
+				roots.push_back(canon);
+		}
+		return roots;
+	}
+
 	// Split a NUL-separated /proc/<pid>/environ blob into KEY=VALUE pairs.
 	// Returns the value for `key`, or "" if not found.
 	std::string environValue(const std::string& blob, const std::string& key) {
@@ -81,9 +99,10 @@ std::string SteamDetector::parseVdfField(const std::string& content,
 //
 // Returns all Steam library root paths, e.g.:
 //   ~/.local/share/Steam/steamapps
+//   ~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps  (Flatpak)
 //   /mnt/8THDD/SteamLibrary/steamapps
 //
-// Reads libraryfolders.vdf for custom paths.
+// Reads each install's libraryfolders.vdf for custom paths.
 // ─────────────────────────────────────────────────────────────────────────────
 std::vector<fs::path> SteamDetector::libraryPaths()
 {
@@ -92,24 +111,20 @@ std::vector<fs::path> SteamDetector::libraryPaths()
 	if (!cached.empty()) return cached;
 
 	std::vector<fs::path> paths;
+	auto addLib = [&](const fs::path& lib) {
+		std::error_code ec;
+		if (!fs::exists(lib, ec)) return;
+		fs::path canon = fs::weakly_canonical(lib, ec);
+		if (ec) canon = lib;
+		if (std::find(paths.begin(), paths.end(), canon) != paths.end()) return;
+		paths.push_back(canon);
+		LOG_DEBUG("Steam library: " << canon.string());
+	};
 
-	// Default Steam install location
-	std::string home = getEnv("HOME");
-	fs::path defaultLib = fs::path(home) / ".local/share/Steam/steamapps";
-	if (fs::exists(defaultLib))
-		paths.push_back(defaultLib);
-
-	// Parse libraryfolders.vdf for additional libraries
-	fs::path vdfPath = defaultLib / "libraryfolders.vdf";
-	std::string vdf = readFile(vdfPath);
-	if (vdf.empty()) {
-		// Try alternate location
-		vdfPath = fs::path(home) / ".steam/steam/steamapps/libraryfolders.vdf";
-		vdf = readFile(vdfPath);
-	}
-
-	if (!vdf.empty()) {
-		// Each library block has a "path" field
+	for (const auto& root : steamRoots()) {
+		// The install's own library, plus every "path" in libraryfolders.vdf
+		addLib(root / "steamapps");
+		std::string vdf = readFile(root / "steamapps" / "libraryfolders.vdf");
 		size_t pos = 0;
 		std::string needle = "\"path\"";
 		while ((pos = vdf.find(needle, pos)) != std::string::npos) {
@@ -120,14 +135,8 @@ std::vector<fs::path> SteamDetector::libraryPaths()
 			if (pos < vdf.size() && vdf[pos] == '"') {
 				++pos;
 				size_t end = vdf.find('"', pos);
-				if (end != std::string::npos) {
-					fs::path lib = fs::path(vdf.substr(pos, end - pos)) / "steamapps";
-					if (fs::exists(lib) &&
-							std::find(paths.begin(), paths.end(), lib) == paths.end()) {
-						paths.push_back(lib);
-						LOG_DEBUG("Steam library: " << lib.string());
-					}
-				}
+				if (end != std::string::npos)
+					addLib(fs::path(vdf.substr(pos, end - pos)) / "steamapps");
 			}
 		}
 	}
@@ -257,11 +266,14 @@ int64_t SteamDetector::getPlaytimeMinutes(int appId)
 {
 	if (appId <= 0) return 0;
 
-	std::string home = getEnv("HOME");
-	fs::path userdataDir = fs::path(home) / ".local/share/Steam/userdata";
-
-	std::error_code ec;
-	if (!fs::exists(userdataDir, ec)) return 0;
+	// Every Steam user's folder, across all Steam installs (native, Flatpak)
+	std::vector<fs::path> userDirs;
+	for (const auto& root : steamRoots()) {
+		std::error_code ec;
+		for (const auto& u : fs::directory_iterator(root / "userdata", ec))
+			userDirs.push_back(u.path());
+	}
+	if (userDirs.empty()) return 0;
 
 	std::string appNeedle = "\"" + std::to_string(appId) + "\"";
 
@@ -274,9 +286,8 @@ int64_t SteamDetector::getPlaytimeMinutes(int appId)
 		"Playtime2Forever",
 	};
 
-	for (const auto& userEntry : fs::directory_iterator(userdataDir, ec)) {
-		if (ec) break;
-		fs::path vdfPath = userEntry.path() / "config" / "localconfig.vdf";
+	for (const auto& userDir : userDirs) {
+		fs::path vdfPath = userDir / "config" / "localconfig.vdf";
 		std::string vdf = readFile(vdfPath);
 		if (vdf.empty()) continue;
 
