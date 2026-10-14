@@ -445,39 +445,6 @@ void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const 
 		LOG_INFO("Presence queued: \"" << s_details << "\"");
 }
 
-// ─── setGenericPresence ───
-void RpcManager::setGenericPresence(const std::string& windowTitle)
-{
-	if (!d->connected) return;
-
-	std::string details = windowTitle.empty()
-		? std::string(config::RPC_DEFAULT_DETAILS)
-		: windowTitle;
-
-	std::lock_guard<std::mutex> lock(s_mutex);
-
-	if (s_hasPresence && s_details == details && !s_pendingUpdate) {
-		LOG_DEBUG("Generic presence unchanged — skipping");
-		return;
-	}
-
-	s_details        = details;
-	s_state          = std::string(config::RPC_STATE_READING);
-	s_largeImageKey  = "vn_default";
-	s_largeImageText = "Visual Novel";
-	s_smallImageKey  = std::string(config::RPC_SMALL_IMG_KEY);
-	s_smallImageText = std::string(config::RPC_SMALL_IMG_TEXT);
-	s_buttonLabel    = "";
-	s_buttonUrl      = "";
-	s_button2Label   = "";
-	s_button2Url     = "";
-	s_startTimestamp = wallSeconds();
-	s_showImage      = true;
-	s_pendingClear   = false;
-
-	pushOrDefer();
-}
-
 // ─── hasPending ───
 bool RpcManager::hasPending() const {
 	std::lock_guard<std::mutex> lock(s_mutex);
