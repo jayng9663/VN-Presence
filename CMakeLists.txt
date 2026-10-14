@@ -44,6 +44,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 	pthread
 )
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+	VN_PRESENCE_VERSION="${PROJECT_VERSION}"
+)
+
 target_compile_options(${PROJECT_NAME} PRIVATE
 	-Wall -Wextra -Wpedantic
 	$<$<CONFIG:Release>:-O2>
