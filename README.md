@@ -10,13 +10,13 @@ Discord Rich Presence daemon for Visual Novels on Linux. Detects games launched 
 
 | With cover art | Cover suppressed (explicit) |
 |:---:|:---:|
-| ![Voice channel presence with cover](docs/voice_with_cover.png) | ![Voice channel presence without cover](docs/voice_no_cover.png) |
+| ![Voice channel presence with cover](docs/images/voice_with_cover.png) | ![Voice channel presence without cover](docs/images/voice_no_cover.png) |
 
 ### User activity
 
 | With cover art | Cover suppressed (explicit) |
 |:---:|:---:|
-| ![User activity with cover](docs/activity_with_cover.png) | ![User activity without cover](docs/activity_no_cover.png) |
+| ![User activity with cover](docs/images/activity_with_cover.png) | ![User activity without cover](docs/images/activity_no_cover.png) |
 
 ---
 
@@ -72,7 +72,7 @@ Lutris passes the game name explicitly as command-line arguments after `lutris-w
 After all candidates are collected, the daemon reads **field 22** (`starttime`) from each process's `/proc/<pid>/stat`. Candidates are then **sorted ascending by starttime**, so the process that launched first is always tried first during VNDB resolution. This makes multi-candidate priority deterministic and reproducible across polls.
 
 > [!NOTE]
-> See the [/proc/\[PID\]/stat field reference](proc_stat_fields.md) for a full breakdown of all stat fields.
+> See the [/proc/\[PID\]/stat field reference](docs/proc_stat_fields.md) for a full breakdown of all stat fields.
 
 > [!TIP]
 > Run with `--verbose` to see candidates list in the debug output:
@@ -190,10 +190,10 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 
 ---
 
-## Configuration (`src/config.hpp`)
+## Configuration (`include/config.hpp`)
 
 > [!CAUTION]
-> Be caution on changing `IMAGE_SEXUAL` and `IMAGE_VIOLENCE` thresholds in `src/config.hpp`.
+> Be caution on changing `IMAGE_SEXUAL` and `IMAGE_VIOLENCE` thresholds in `include/config.hpp`.
 > Those thresholds are set to `1.80` (slightly below VNDB's **Explicit** level of `2.00`)
 > because VNDB image ratings are user-reported and may be underrated by a small margin —
 > the 0.20 buffer ensures borderline explicit covers are still suppressed.
