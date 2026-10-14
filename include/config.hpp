@@ -32,7 +32,10 @@ namespace config {
 	/** Maximum number of VNDB results returned per search (we only use index 0). **/
 	inline constexpr int VNDB_MAX_RESULTS = 1;
 
-	/** Maximum value for sexual or violence before being supperessd, and the minimum vote count req.**/
+	/** Covers rated at or above IMAGE_SEXUAL / IMAGE_VIOLENCE are suppressed.
+	 * Covers with fewer than IMAGE_VOTECOUNT votes are suppressed too, since
+	 * their ratings can't be trusted yet.
+	 **/
 	inline constexpr double IMAGE_SEXUAL   = 1.80;
 	inline constexpr double IMAGE_VIOLENCE = 1.80;
 	inline constexpr int    IMAGE_VOTECOUNT = 5;
