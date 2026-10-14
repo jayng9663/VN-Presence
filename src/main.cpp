@@ -28,7 +28,6 @@ static void sleepInterruptible(std::chrono::seconds d) {
 
 struct AppState {
 	std::string lastSearchTitle;    ///< game-name key of the VN currently shown
-	std::string lastDetectSource;   ///< source of the VN currently shown
 	std::string candidateSetKey;    ///< debounce key: sorted candidate names joined by '|'
 	int         stablePollCount = 0;
 	bool        hasPresence     = false;
@@ -174,7 +173,6 @@ int main(int argc, char* argv[])
 				rpc.clearPresence();
 				state.hasPresence       = false;
 				state.lastSearchTitle.clear();
-				state.lastDetectSource.clear();
 				state.candidateSetKey.clear();
 				state.stablePollCount   = 0;
 				LOG_INFO("No games running — presence cleared");
@@ -362,14 +360,12 @@ int main(int argc, char* argv[])
 				rpc.setPresence(*vnInfo, matchedSource, matchedTitle, matchedStarttime, matchedAppId);
 				state.hasPresence      = true;
 				state.lastSearchTitle  = matchedTitle;
-				state.lastDetectSource = matchedSource;
 			} else {
 				if (state.hasPresence) {
 					LOG_INFO("No VN match among candidates — clearing presence");
 					rpc.clearPresence();
 					state.hasPresence     = false;
 					state.lastSearchTitle.clear();
-					state.lastDetectSource.clear();
 				}
 			}
 		}
