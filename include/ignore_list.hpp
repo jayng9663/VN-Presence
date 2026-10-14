@@ -30,12 +30,6 @@ class IgnoreList {
 		 **/
 		[[nodiscard]] bool matches(const std::string& name);
 
-		/**
-		 * Append an entry to the list and persist it to disk immediately.
-		 * No-op if the entry already exists.
-		 **/
-		void add(const std::string& entry);
-
 		/** Return the default ignore list path. **/
 		static std::filesystem::path defaultPath();
 
