@@ -66,9 +66,6 @@ namespace config {
 	/** Discord presence state string shown while reading. **/
 	inline constexpr std::string_view RPC_STATE_READING  = "Reading";
 
-	/** Discord presence state string shown while idle. **/
-	inline constexpr std::string_view RPC_STATE_IDLE     = "Idle";
-
 	/** Discord asset key for the small image (VNDB logo). Upload to Dev Portal. **/
 	inline constexpr std::string_view RPC_SMALL_IMG_KEY  = "vndb_logo";
 
@@ -77,9 +74,6 @@ namespace config {
 
 	/** Tooltip text for the small image. **/
 	inline constexpr std::string_view RPC_SMALL_IMG_TEXT = "VNDB";
-
-	/** Details line shown when no VNDB title is matched. **/
-	inline constexpr std::string_view RPC_DEFAULT_DETAILS = "Playing a Visual Novel";
 
 	/** Use SQLite instead of CSV for the persistent cache.
 	 * true  → ~/.config/vn-discord-rpc/cache.db  (SQLite) !! Experimental !!
