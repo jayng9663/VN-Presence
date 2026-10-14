@@ -389,9 +389,13 @@ void VnCache::save() const {
 		}
 	}
 
-	std::ofstream f(path_);
+	// Write to a temp file and rename it over cache.csv, so a crash mid-write
+	// can't leave a truncated cache behind.
+	auto tmpPath = path_;
+	tmpPath += ".tmp";
+	std::ofstream f(tmpPath);
 	if (!f) {
-		LOG_ERR("Cannot write cache to " << path_.string());
+		LOG_ERR("Cannot write cache to " << tmpPath.string());
 		return;
 	}
 	LOG_DEBUG("Saving " << entries_.size() << " cache entries to " << path_.string());
@@ -407,6 +411,15 @@ void VnCache::save() const {
 
 	for (const auto& [key, e] : entries_)
 		f << serialise(e) << '\n';
+
+	f.close();
+	if (!f) {
+		LOG_ERR("Cannot write cache to " << tmpPath.string());
+		std::filesystem::remove(tmpPath, ec);
+		return;
+	}
+	std::filesystem::rename(tmpPath, path_, ec);
+	if (ec) LOG_ERR("Cannot replace " << path_.string() << ": " << ec.message());
 }
 
 // ── lookup ──
