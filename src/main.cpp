@@ -83,14 +83,16 @@ int main(int argc, char* argv[])
 		std::string arg = argv[i];
 		if (arg == "--verbose" || arg == "-v")   verbose = true;
 		else if (arg == "--log-file" || arg == "-l") {
-			logFile = "vn-presence.log";
+			// Path is optional — fall back to ./vn-presence.log
+			bool hasPath = i + 1 < argc && argv[i + 1][0] != '-';
+			logFile = hasPath ? argv[++i] : "vn-presence.log";
 		}
 		else if (arg == "--help" || arg == "-h") {
 			std::cout <<
 				"Usage: vn-discord-rpc [OPTIONS]\n\n"
 				"Options:\n"
 				"  -v, --verbose         Enable DEBUG-level logging\n"
-				"  -l, --log-file <path> Append log output to <path>\n"
+				"  -l, --log-file [path] Append log output to [path] (default: ./vn-presence.log)\n"
 				"  -h, --help            Show this message\n\n"
 				"Cache file: " << VnCache::defaultPath().string() << "\n";
 			return 0;
