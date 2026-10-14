@@ -160,19 +160,3 @@ next_pid:;
 
 	return results;
 }
-
-/** Return the highest-priority VN process, or nullopt if none running. **/
-std::optional<VnProcess> ProcessScanner::findFirst()
-{
-	auto v = scan();
-	if (v.empty()) {
-		LOG_DEBUG("ProcessScanner: no VN processes found");
-		return std::nullopt;
-	}
-	LOG_DEBUG("ProcessScanner found " << v.size() << " candidate(s):");
-	for (const auto& p : v)
-		LOG_DEBUG("  [" << p.source << "] pid=" << p.pid
-				<< "  name=\"" << p.gameName << "\""
-				<< "  exe=" << p.exePath);
-	return v.front();
-}
