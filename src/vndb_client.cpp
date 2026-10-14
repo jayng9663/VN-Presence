@@ -235,8 +235,9 @@ std::optional<VnInfo> VndbClient::parseResponse(const std::string& jsonStr,
 		info.image_sexual   = safeDouble(img, "sexual",   0.0);
 		info.image_violence = safeDouble(img, "violence", 0.0);
 		info.image_votecount = safeInt(img, "votecount", 0);
-		info.image_url = safeStr(img, "url");
-		if (info.isImageExplicit())
+		if (!info.isImageExplicit())
+			info.image_url = safeStr(img, "url");
+		else
 			LOG_INFO("Cover explicit (sexual=" << info.image_sexual
 					<< " violence=" << info.image_violence
 					<< " votecount=" << info.image_votecount << ") — will be suppressed in RPC");
