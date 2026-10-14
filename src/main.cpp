@@ -216,17 +216,9 @@ int main(int argc, char* argv[])
 					continue;
 				}
 
-				// ── Alias (redirect to a different search key) ──
-				if (!cached->alias.empty()) {
-					if (cached->hasMatch()) {
-						vnInfo        = cached->toVnInfo();
-						matchedTitle  = title;
-						matchedSource = proc.source;
-						matchedStarttime = proc.starttime;
-						matchedAppId = proc.appId;
-						LOG_INFO("Cache hit (alias→" << cached->alias << "): \"" << vnInfo->title << "\"");
-						break;
-					}
+				// ── Alias not resolved yet (redirect to a different search key) ──
+				// Resolved alias rows go through the normal cache-hit path below.
+				if (!cached->alias.empty() && !cached->hasMatch()) {
 					// Alias target not yet resolved — query VNDB now
 					std::string aliasKey = cached->alias;
 					LOG_INFO("Alias \"" << title
@@ -264,19 +256,27 @@ int main(int argc, char* argv[])
 						matchedSource = proc.source;
 						matchedStarttime = proc.starttime;
 						matchedAppId = proc.appId;
-						LOG_INFO("Cache hit: \"" << vnInfo->title << "\"");
+						if (cached->alias.empty())
+							LOG_INFO("Cache hit: \"" << vnInfo->title << "\"");
+						else
+							LOG_INFO("Cache hit (alias→" << cached->alias << "): \"" << vnInfo->title << "\"");
 						break;
 					}
-					// Stale — refresh from VNDB
+					// Stale — refresh by the stored VNDB id, not by title, so a hand-set
+					// id (hard-link row) or an earlier match is never replaced
 					int64_t ageMin = (now - cached->cached_at) / 60;
-					LOG_INFO("Cache expired for \"" << title << "\"  age=" << ageMin << "min/" << (ttlSec / 60) << "min — re-querying VNDB");
-					vnInfo = vndb.search(title);
+					LOG_INFO("Cache expired for \"" << title << "\"  age=" << ageMin << "min/" << (ttlSec / 60) << "min — re-querying VNDB (" << cached->vndb_id << ")");
+					vnInfo = vndb.fetchById(cached->vndb_id);
 					if (vnInfo) {
-						cache.store(title, *vnInfo);
+						if (cached->alias.empty())
+							cache.store(title, *vnInfo);
+						else
+							cache.storeAliasFilled(title, cached->alias, *vnInfo);
 					} else {
 						// Refresh failed — keep showing the stale cached data
 						LOG_WARN("Refresh failed for \"" << title << "\" — using cached data");
 						vnInfo = cached->toVnInfo();
+						if (vnInfo->title.empty()) vnInfo->title = title;  // hard-link row never filled in
 					}
 					matchedTitle  = title;
 					matchedSource = proc.source;
