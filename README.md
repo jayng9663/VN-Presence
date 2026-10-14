@@ -106,7 +106,7 @@ Before the similarity check, full-width ASCII (`！２→!2`, `（→(`) is norm
 
 ### Cache TTL
 
-VNDB results are stored persistently in `cache.csv`. On each cache hit the daemon compares the entry's `cached_at` timestamp against `VNDB_CACHE_TTL`. If the entry is older than the TTL, it is treated as expired and a fresh VNDB query is issued, updating the stored data and timestamp.
+VNDB results are stored persistently in `cache.csv`. On each cache hit the daemon compares the entry's `cached_at` timestamp against `VNDB_CACHE_TTL`. If the entry is older than the TTL, it is treated as expired and a fresh VNDB query is issued, updating the stored data and timestamp. If that refresh fails (offline, VNDB down, or no match), the old cached data is still used.
 
 ```mermaid
 flowchart TD
@@ -151,9 +151,10 @@ Located at `~/.config/vn-discord-rpc/cache.csv` (default) or `cache.db` when `CA
 | `vndb_id` | `v562`, `v67`, `SKIP`, or empty |
 | `title` | Romanised VNDB title (auto-filled) |
 | `alt_title` | Original script title, e.g. Japanese (auto-filled) |
-| `image_url` | Cover image URL (auto-filled, blank if explicit(sexual or violence)) |
+| `image_url` | Cover image URL (auto-filled, blank if suppressed: explicit, or fewer than 5 image votes) |
 | `image_sexual` | VNDB sexual rating 0–2 (auto-filled) |
 | `image_violence` | VNDB violence rating 0–2 (auto-filled) |
+| `image_votecount` | Number of VNDB votes behind the image ratings (auto-filled) |
 | `rating` | VNDB community rating 0–100 (auto-filled) |
 | `released` | Release date (auto-filled) |
 | `cached_at` | Unix timestamp of last write (auto-filled) |
