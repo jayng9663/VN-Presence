@@ -452,7 +452,7 @@ std::optional<CacheEntry> VnCache::lookup(const std::string& key) {
 	return e;
 }
 
-// ── store / storeNoMatch / storeAlias ──
+// ── store / storeAliasFilled ──
 void VnCache::store(const std::string& key, const VnInfo& vn) {
 	CacheEntry e;
 	e.key            = key;
@@ -467,25 +467,6 @@ void VnCache::store(const std::string& key, const VnInfo& vn) {
 	e.released       = vn.released;
 	e.cached_at      = nowUnix();
 	entries_[key]    = e;
-	save();
-}
-
-void VnCache::storeNoMatch(const std::string& key) {
-	// Store empty vndb_id — no match, but we tried
-	CacheEntry e;
-	e.key       = key;
-	e.cached_at = nowUnix();
-	entries_[key] = e;
-	save();
-	LOG_DEBUG("Cache stored no-match for \"" << key << "\"");
-}
-
-void VnCache::storeAlias(const std::string& key, const std::string& aliasTarget) {
-	CacheEntry e;
-	e.key       = key;
-	e.alias     = aliasTarget;
-	e.cached_at = nowUnix();
-	entries_[key] = e;
 	save();
 }
 
