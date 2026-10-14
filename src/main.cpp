@@ -270,14 +270,16 @@ int main(int argc, char* argv[])
 					vnInfo = vndb.search(title);
 					if (vnInfo) {
 						cache.store(title, *vnInfo);
-						matchedTitle  = title;
-						matchedSource = proc.source;
-						matchedStarttime = proc.starttime;
-						matchedAppId = proc.appId;
-						break;
+					} else {
+						// Refresh failed — keep showing the stale cached data
+						LOG_WARN("Refresh failed for \"" << title << "\" — using cached data");
+						vnInfo = cached->toVnInfo();
 					}
-					// Refresh failed — try next candidate
-					continue;
+					matchedTitle  = title;
+					matchedSource = proc.source;
+					matchedStarttime = proc.starttime;
+					matchedAppId = proc.appId;
+					break;
 				}
 
 				// Stale no-match row → migrate to ignore list, try next
