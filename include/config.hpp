@@ -11,6 +11,9 @@ namespace config {
 	/** Activity type**/
 	inline constexpr int DISCORD_ACTIVITY_TYPE = 0; // 0=Game, 1=Streaming, 2=Listening, 3=Watching
 
+	/** What the member list shows after "Playing": 0=app name, 1=state line, 2=details (VN title). **/
+	inline constexpr int DISCORD_STATUS_DISPLAY = 2;
+
 	/** Base URL of the VNDB Kana REST API. **/
 	inline constexpr std::string_view VNDB_API_URL         = "https://api.vndb.org/kana/vn";
 
