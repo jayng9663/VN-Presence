@@ -175,7 +175,7 @@ static std::string httpPost(const std::string& url, const std::string& requestBo
 	headers = curl_slist_append(headers, "Content-Type: application/json");
 	headers = curl_slist_append(headers, "Accept: application/json");
 	// Polite user-agent (VNDB's docs request this)
-	headers = curl_slist_append(headers, "User-Agent: VN-Presence/1.0 (github; contact via issues)");
+	headers = curl_slist_append(headers, "User-Agent: VN-Presence/" VN_PRESENCE_VERSION " (github; contact via issues)");
 
 	curl_easy_setopt(curl, CURLOPT_URL,            url.c_str());
 	curl_easy_setopt(curl, CURLOPT_POST,           1L);
