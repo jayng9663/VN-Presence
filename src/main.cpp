@@ -237,6 +237,10 @@ int main(int argc, char* argv[])
 						matchedAppId = proc.appId;
 						break;
 					}
+					if (vndb.lastSearchFailed()) {
+						LOG_WARN("VNDB request failed for alias \"" << aliasKey << "\" — will retry next poll");
+						continue;
+					}
 					LOG_INFO("No VNDB match for alias target \"" << aliasKey
 							<< "\" — adding \"" << title << "\" to ignore list");
 					ignoreList.add(title);
@@ -294,6 +298,11 @@ int main(int argc, char* argv[])
 				matchedAppId = proc.appId;
 				LOG_INFO("VNDB match for \"" << title << "\": \"" << vnInfo->title << "\"");
 				break;
+			}
+			// Network / server error — don't ignore a title we couldn't check
+			if (vndb.lastSearchFailed()) {
+				LOG_WARN("VNDB request failed for \"" << title << "\" — will retry next poll");
+				continue;
 			}
 			// No VNDB match — add to ignore list and try the next candidate
 			LOG_INFO("No VNDB match for \"" << title
