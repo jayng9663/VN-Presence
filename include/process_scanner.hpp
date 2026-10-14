@@ -1,6 +1,5 @@
 #pragma once
 #include <string>
-#include <optional>
 #include <vector>
 
 /**
@@ -11,8 +10,7 @@ struct VnProcess {
 	std::string gameName;   ///< Human-readable title to search on VNDB
 	std::string exePath;    ///< Full Linux path to the executable being run
 	int         pid = 0;    ///< Linux process ID
-	std::string source;     ///< Detection method: "lutris" | "wine-exe" | "gamescope" |
-									///<                   "steam-native" | "native-engine" | "steam-arg"
+	std::string source;     ///< Detection method: "lutris" | "steam-appid"
 	int64_t     starttime = 0; ///< /proc/<pid>/stat field 22 (clock ticks since boot; 0 = unknown)
 	int         appId = 0;     ///< Steam AppID (steam-appid source only; 0 otherwise)
 };
@@ -35,14 +33,9 @@ class ProcessScanner {
 	public:
 		/**
 		 * Scan /proc and return all candidate VN processes sorted by
-		 * detection-source priority (lutris first, steam-arg last).
+		 * process start time (earliest first).
 		 **/
 		[[nodiscard]] static std::vector<VnProcess> scan();
-
-		/**
-		 * Convenience wrapper — return the highest-priority candidate or nullopt.
-		 **/
-		[[nodiscard]] static std::optional<VnProcess> findFirst();
 
 	private:
 		/** Read /proc/<pid>/cmdline and split on NUL bytes. **/
