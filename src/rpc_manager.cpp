@@ -103,6 +103,7 @@ static void applyLocked() {
 		.getPresence()
 		.clear()
 		.setActivityType(static_cast<discord::ActivityType>(config::DISCORD_ACTIVITY_TYPE))
+		.setStatusDisplayType(static_cast<discord::StatusDisplayType>(config::DISCORD_STATUS_DISPLAY))
 		.setDetails(s_details)
 		.setState(s_state)
 		.setStartTimestamp(s_startTimestamp);
