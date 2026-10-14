@@ -116,7 +116,7 @@ int main(int argc, char* argv[])
 		}
 		else if (arg == "--help" || arg == "-h") {
 			std::cout <<
-				"Usage: vn-discord-rpc [OPTIONS]\n\n"
+				"Usage: VN-Presence [OPTIONS]\n\n"
 				"Options:\n"
 				"  -v, --verbose         Enable DEBUG-level logging\n"
 				"  -l, --log-file [path] Append log output to [path] (default: ./vn-presence.log)\n"
