@@ -59,12 +59,6 @@ class RpcManager {
 				int steamAppId = 0);
 
 		/**
-		 * Send a generic "Playing a Visual Novel" presence when no VNDB match
-		 * was found.
-		 **/
-		void setGenericPresence(const std::string& windowTitle);
-
-		/**
 		 * Clear the Discord presence.
 		 * Deferred if called within the rate-limit window.
 		 **/
