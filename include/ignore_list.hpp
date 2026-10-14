@@ -16,9 +16,8 @@
  * (Steam runtimes, Proton, launchers, etc.).  Edit it while the daemon is
  * running — changes are reloaded automatically on the next poll.
  *
- * To permanently ignore a detected title, either:
- *   - Add it manually to ignore.txt, or
- *   - Let the daemon auto-add it when no VNDB match is found.
+ * To permanently ignore a detected title, add it manually to ignore.txt.
+ * The daemon never adds entries on its own.
  **/
 class IgnoreList {
 	public:
