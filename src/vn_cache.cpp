@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS cache (
 	}
 
 	// Read all rows from DB into the entries map
-	void dbLoad(sqlite3* db, std::unordered_map<std::string, CacheEntry>& entries) {
+	void dbLoad(sqlite3* db, std::map<std::string, CacheEntry>& entries) {
 		const char* sql = "SELECT key,alias,vndb_id,title,alt_title,image_url,"
 			"image_sexual,image_violence,image_votecount,rating,released,cached_at FROM cache";
 		sqlite3_stmt* stmt = nullptr;

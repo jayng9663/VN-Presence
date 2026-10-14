@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include <optional>
-#include <unordered_map>
+#include <map>
 #include <filesystem>
 
 /** Sentinel stored in vndb_id to permanently suppress presence for a key. **/
@@ -97,7 +97,7 @@ class VnCache {
 
 	private:
 		std::filesystem::path                       path_;
-		std::unordered_map<std::string, CacheEntry> entries_;
+		std::map<std::string, CacheEntry>           entries_;   ///< Sorted, so cache.csv keeps a stable row order
 		std::filesystem::file_time_type             lastMtime_{};
 
 		void parse(const std::string& csv);
