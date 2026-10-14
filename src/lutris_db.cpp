@@ -15,6 +15,13 @@ namespace {
 		return s;
 	}
 
+	// Short needles (< 4 bytes) must match exactly, so a Lutris game named
+	// "1" or "" doesn't match every title — same rule as the ignore list.
+	bool containsName(const std::string& hay, const std::string& needle) {
+		if (needle.size() < 4) return hay == needle;
+		return hay.find(needle) != std::string::npos;
+	}
+
 } // namespace
 
 // ─── defaultDbPath ───
@@ -66,6 +73,9 @@ static std::string normalizeDashes(const std::string& s) {
  **/
 std::optional<int64_t> LutrisDB::getPlaytime(const std::string& gameName)
 {
+	const std::string qLow = toLower(normalizeDashes(gameName));
+	if (qLow.empty()) return std::nullopt;
+
 	auto dbPath = defaultDbPath();
 
 	std::error_code ec;
@@ -93,7 +103,6 @@ std::optional<int64_t> LutrisDB::getPlaytime(const std::string& gameName)
 		return std::nullopt;
 	}
 
-	// queryLow computed per-row now (after normalization)
 	std::optional<int64_t> result;
 	int64_t bestPlaytime = 0;
 
@@ -105,11 +114,9 @@ std::optional<int64_t> LutrisDB::getPlaytime(const std::string& gameName)
 		if (!nameRaw) continue;
 
 		std::string nameLow = toLower(normalizeDashes(nameRaw));
-		std::string qLow    = toLower(normalizeDashes(gameName));
 
 		// Match if either is a substring of the other
-		bool match = nameLow.find(qLow) != std::string::npos
-			|| qLow.find(nameLow) != std::string::npos;
+		bool match = containsName(nameLow, qLow) || containsName(qLow, nameLow);
 
 		if (match && playtime > bestPlaytime) {
 			bestPlaytime = playtime;
