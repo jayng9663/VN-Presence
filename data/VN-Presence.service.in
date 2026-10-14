@@ -1,0 +1,11 @@
+[Unit]
+Description=VN-Presence — Discord Rich Presence for visual novels
+Documentation=https://github.com/jayng9663/VN-Presence
+
+[Service]
+ExecStart=@CMAKE_INSTALL_PREFIX@/bin/VN-Presence
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
