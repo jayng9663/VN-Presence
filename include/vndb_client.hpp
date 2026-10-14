@@ -62,7 +62,16 @@ class VndbClient {
 		 **/
 		[[nodiscard]] std::optional<VnInfo> search(const std::string& title);
 
+		/**
+		 * Return true when the last search() returned nullopt because of a
+		 * network or server error (curl failure, HTTP 429 or 5xx) rather than
+		 * a real "no match" — the title should be retried later, not ignored.
+		 **/
+		[[nodiscard]] bool lastSearchFailed() const noexcept { return lastFailed_; }
+
 	private:
+		bool lastFailed_ = false;
+
 		[[nodiscard]] std::optional<VnInfo> doSearch(const std::string& title);
 
 		/** Search the /release endpoint and return the linked VN, or nullopt. **/
