@@ -38,7 +38,7 @@ static void printBanner()
   LOG_INFO(" │        vn-discord-rpc  v1.0.2        │ ");
   LOG_INFO(" │  Visual Novel Discord Rich Presence  │ ");
   LOG_INFO(" ╰──────────────────────────────────────╯ ");
-	if (std::string(config::DISCORD_APP_ID) == "YOUR_DISCORD_APP_ID_HERE") LOG_WARN("DISCORD_APP_ID not set in src/config.hpp! ""Get one at: https://discord.com/developers/applications");
+	if (std::string(config::DISCORD_APP_ID) == "YOUR_DISCORD_APP_ID_HERE") LOG_WARN("DISCORD_APP_ID not set in include/config.hpp! ""Get one at: https://discord.com/developers/applications");
 }
 
 /**
