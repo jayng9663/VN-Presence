@@ -22,7 +22,7 @@ Discord Rich Presence daemon for Visual Novels on Linux. Detects games launched 
 
 ## Features
 
-- Detects games from **Lutris** (exact name from wrapper) and **Steam** (AppID → ACF → store name)
+- Detects games from **Lutris** (exact name from wrapper) and **Steam** (AppID → ACF → store name), including Flatpak Steam
 - Fuzzy title matching against VNDB using trigram similarity + full-width character normalisation
 - Fallback: searches the **release** endpoint and follows the relation back to the parent VN
 - Suppresses explicit cover images (sexual ≥ 1.80 or violence ≥ 1.80, or fewer than 5 image votes) — title still shows
@@ -30,6 +30,9 @@ Discord Rich Presence daemon for Visual Novels on Linux. Detects games launched 
 - Discord elapsed timer reflects **prior playtime + current session**, not just this session
 - Editable `cache.csv` for aliases, hard-links, and SKIP entries — reloaded live while running
 - `ignore.txt` with exact-match for short entries (< 4 chars) to prevent false positives like `sh`
+- Shows the VN title in Discord's member list ("Playing サクラノ詩…"), the VNDB rating on cover hover, and a **Steam Store** button for Steam games
+- Reconnects on its own when Discord restarts or starts after the daemon, and re-sends the current presence
+- Backs off VNDB retries while offline (30 s, doubling up to 10 min) instead of retrying every poll
 
 ---
 
@@ -106,7 +109,7 @@ Before the similarity check, full-width ASCII (`！２→!2`, `（→(`) is norm
 
 ### Cache TTL
 
-VNDB results are stored persistently in `cache.csv`. On each cache hit the daemon compares the entry's `cached_at` timestamp against `VNDB_CACHE_TTL`. If the entry is older than the TTL, it is treated as expired and a fresh VNDB query is issued, updating the stored data and timestamp. If that refresh fails (offline, VNDB down, or no match), the old cached data is still used.
+VNDB results are stored persistently in `cache.csv`. On each cache hit the daemon compares the entry's `cached_at` timestamp against `VNDB_CACHE_TTL`. If the entry is older than the TTL, it is treated as expired and re-fetched from VNDB **by its stored id** (not by title, so hard-links and earlier matches are never replaced), updating the stored data and timestamp. If that refresh fails (offline, VNDB down, or no match), the old cached data is still used.
 
 ```mermaid
 flowchart TD
@@ -119,7 +122,7 @@ flowchart TD
 This means ratings, cover images, and release dates in the cache are automatically refreshed over time without any manual intervention. The log line when a re-query fires looks like:
 
 ```
-[INFO] Cache expired for "..."  age=1442min/1440min — re-querying VNDB
+[INFO] Cache expired for "..."  age=1442min/1440min — re-querying VNDB (v562)
 ```
 
 ---
@@ -168,7 +171,8 @@ Nice boat!,School Days,,,,,,,,
 # Skip — suppress presence for this title
 妹ぱらだいす！２,,SKIP,,,,,,,
 
-# Hard-link — bypass VNDB query, point directly to an entry
+# Hard-link — bypass VNDB search, point directly to an entry
+# (title, cover, etc. are filled in from VNDB by id; the id you set is kept)
 My VN Title,,v67,,,,,,,
 ```
 
@@ -187,7 +191,7 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 > [!NOTE]
 > The daemon never writes to ignore.txt itself. If a title has no VNDB match, it is skipped
 > until the daemon restarts, then checked once more. Network or server errors (offline, HTTP 429/5xx)
-> don't count as no match — the title is simply retried on the next poll.
+> don't count as no match — the title is retried later, waiting 30 s and doubling up to 10 min.
 > To stop a title from ever being queried, add it to ignore.txt or add a SKIP entry to cache.csv.
 
 ---
@@ -207,12 +211,15 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 | Constant | Default | Description |
 |---|---|---|
 | `DISCORD_APP_ID` | `1482345564698841189` | Discord application ID |
+| `DISCORD_STATUS_DISPLAY` | `2` | What the member list shows after "Playing": `0` app name, `1` state line, `2` VN title |
+| `RPC_SHOW_RATING` | `true` | Append the VNDB rating to the cover's hover text |
 | `IMAGE_SEXUAL` | `1.80` | Maximum threshold value for sexual before being suppressed |
 | `IMAGE_VIOLENCE` | `1.80` | Maximum threshold value for violence before being suppressed |
 | `IMAGE_VOTECOUNT` | `5` | Covers with fewer image votes than this are suppressed (rating not trusted yet) |
 | `VNDB_MIN_SIMILARITY` | `0.35` | Minimum trigram score to accept a match |
 | `POLL_INTERVAL` | `5s` | How often to scan for running processes |
 | `VNDB_CACHE_TTL` | `24h` | How long a `cache.csv` or `cache.db` entry is valid before re-querying VNDB |
+| `VNDB_RETRY_MIN` / `VNDB_RETRY_MAX` | `30s` / `600s` | Retry delay after a VNDB network/server error (doubles each time) |
 | `STABLE_TITLE_POLLS` | `2` | Polls a title must be stable before acting |
 | `CACHE_USE_DB` | `false` | **[Experimental]** Use SQLite (`cache.db`) instead of CSV (`cache.csv`) |
 
@@ -221,8 +228,9 @@ The default file includes common false-positives: Steam runtimes, Proton, Wine h
 ## Building
 
 > [!IMPORTANT]
-> Initialise submodules before building — the two header-only dependencies are not
-> downloaded automatically.
+> Initialise submodules before building — the three submodules (discord-presence,
+> nlohmann/json, cpp-logger) are not downloaded automatically. The first CMake configure
+> also needs network access: discord-presence fetches fmt and glaze through CPM.
 > ```bash
 > git submodule update --init --recursive
 > ```
@@ -251,13 +259,32 @@ cmake --build build
 > exactly which process was found, what VNDB returned, and the similarity score.
 
 ```bash
-./vn-discord-rpc            # normal
-./vn-discord-rpc --verbose  # debug logging
-./vn-discord-rpc --log-file /path/to/vn.log  # also log to a file (default: ./vn-presence.log)
-./vn-discord-rpc --help
+./build/VN-Presence            # normal
+./build/VN-Presence --verbose  # debug logging
+./build/VN-Presence --log-file /path/to/vn.log  # also log to a file (default: ./vn-presence.log)
+./build/VN-Presence --help
 ```
 
 Launch a game through **Lutris** or **Steam**, and the daemon will detect it automatically. Press `Ctrl+C` to quit cleanly.
+Discord doesn't need to be running first — the daemon waits for it and reconnects if it restarts.
+
+> [!NOTE]
+> Discord only shows Rich Presence buttons (**View on VNDB**, **Steam Store**) to other people,
+> not on your own profile.
+
+### Run at login (systemd user service)
+
+`cmake --install` also installs a user unit pointing at the installed binary:
+
+```bash
+sudo cmake --install build                  # binary → /usr/local/bin, unit → /usr/local/lib/systemd/user
+systemctl --user daemon-reload
+systemctl --user enable --now VN-Presence.service
+journalctl --user -u VN-Presence -f         # follow the log
+```
+
+To install somewhere else, set the prefix when configuring (`cmake -B build -DCMAKE_INSTALL_PREFIX=...`)
+so the unit's `ExecStart` path matches.
 
 ---
 
@@ -269,4 +296,4 @@ Launch a game through **Lutris** or **Steam**, and the daemon will detect it aut
 | Cache (SQLite, experimental) | `~/.config/vn-discord-rpc/cache.db` |
 | Ignore list | `~/.config/vn-discord-rpc/ignore.txt` |
 | Lutris DB | `~/.local/share/lutris/pga.db` |
-| Steam VDF | `~/.local/share/Steam/userdata/<id>/config/localconfig.vdf` |
+| Steam VDF | `~/.local/share/Steam/userdata/<id>/config/localconfig.vdf` (also checked under `~/.steam/steam` and Flatpak's `~/.var/app/com.valvesoftware.Steam/.local/share/Steam`) |
