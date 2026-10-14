@@ -18,7 +18,8 @@ struct SteamGame {
  *   1. Scan /proc/<pid>/environ for SteamAppId=<id>  (Steam sets this for
  *      every launched game process — works with Proton, native, and tools).
  *   2. Locate steamapps/appmanifest_<id>.acf across all Steam library paths
- *      (reads libraryfolders.vdf for custom library locations).
+ *      (native, ~/.steam/steam and Flatpak installs; reads libraryfolders.vdf
+ *      for custom library locations).
  *   3. Parse the "name" field from the ACF — this is the exact Steam store
  *      name, independent of install directory.
  **/
@@ -33,7 +34,8 @@ class SteamDetector {
 
 		/**
 		 * Read total playtime for a given AppID from Steam local userdata.
-		 * Reads ~/.local/share/Steam/userdata/<steamid>/config/localconfig.vdf
+		 * Reads <steam>/userdata/<steamid>/config/localconfig.vdf for every
+		 * Steam install found (native, ~/.steam/steam, Flatpak).
 		 * @return Playtime in minutes, or 0 if not found.
 		 **/
 		[[nodiscard]] static int64_t getPlaytimeMinutes(int appId);
