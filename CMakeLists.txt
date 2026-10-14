@@ -56,10 +56,12 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 
 # ── Install ──
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+
+# systemd user unit, with ExecStart pointing at the installed binary
+configure_file(data/VN-Presence.service.in ${CMAKE_CURRENT_BINARY_DIR}/VN-Presence.service @ONLY)
 install(FILES
-	${CMAKE_CURRENT_SOURCE_DIR}/data/VN-Presence.service
+	${CMAKE_CURRENT_BINARY_DIR}/VN-Presence.service
 	DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/user
-	OPTIONAL
 )
 
 message(STATUS "──────────────────────────────────────────")
