@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <format>
 #include <fstream>
 #include <mutex>
 #include <string>
@@ -406,7 +407,10 @@ void RpcManager::setPresence(const VnInfo& vn, const std::string& source, const 
 	s_details        = displayTitle;
 	s_state          = state;
 	s_largeImageKey  = showImage ? vn.image_url : "";
-	s_largeImageText = displayTitle;
+	// VNDB rating is 10–100; show it out of 10 like the website does
+	s_largeImageText = (config::RPC_SHOW_RATING && vn.rating > 0)
+		? std::format("{} — ★ {:.2f}", displayTitle, vn.rating / 10.0)
+		: displayTitle;
 	s_smallImageKey  = std::string(config::RPC_SMALL_IMG_KEY);
 	s_smallImageText = std::string(config::RPC_SMALL_IMG_TEXT);
 	s_buttonLabel    = "View on VNDB";
