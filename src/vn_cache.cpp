@@ -272,7 +272,7 @@ void VnCache::parse(const std::string& csv) {
 		e.image_url      = f[5];
 		e.image_sexual   = toDouble(f[6]);
 		e.image_violence = toDouble(f[7]);
-		e.image_votecount = std::stoi(f[8]);
+		try { e.image_votecount = f[8].empty() ? 0 : std::stoi(f[8]); } catch (...) {}
 		e.rating         = toDouble(f[9]);
 		e.released       = f[10];
 		try { e.cached_at = f[11].empty() ? 0 : std::stoll(f[11]); } catch (...) {}
