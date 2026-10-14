@@ -74,19 +74,6 @@ bool IgnoreList::matches(const std::string& name) {
 	return false;
 }
 
-/** Append entry to the in-memory set and persist to disk immediately. **/
-void IgnoreList::add(const std::string& entry) {
-	auto low = toLower(entry);
-	if (entries_.count(low)) return;
-	entries_.insert(low);
-
-	std::ofstream f(path_, std::ios::app);
-	if (f) {
-		f << entry << "\n";
-		LOG_INFO("Added to ignore list: \"" << entry << "\"");
-	}
-}
-
 // Default ignore.txt — written once on first run
 void IgnoreList::writeDefaults() {
 	std::ofstream f(path_);
