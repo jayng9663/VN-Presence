@@ -6,6 +6,7 @@
 
 #include <discord-rpc.hpp>
 
+#include <atomic>
 #include <chrono>
 #include <fstream>
 #include <mutex>
@@ -37,6 +38,10 @@ static std::string      s_lastTitle;        // track title changes to reset star
 
 // Track whether anything is currently shown in Discord
 static bool             s_hasPresence     = false;
+
+// Set by the onReady callback (library IO thread) — Discord (re)connected,
+// so the current presence has to be sent again.
+static std::atomic<bool> s_resend{false};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers (all must be called with s_mutex held)
@@ -149,6 +154,7 @@ bool RpcManager::connect()
 		.setClientID(d->appId)
 		.onReady([](discord::User const& user) {
 				LOG_INFO("Connected to Discord as " << user.username);
+				s_resend = true;
 				})
 	.onDisconnected([](int code, std::string_view msg) {
 			LOG_INFO("Disconnected from Discord (" << code << "): " << msg);
@@ -192,6 +198,12 @@ void RpcManager::runCallbacks()
 	// leave the handshake stuck, so presence never shows up in Discord.
 
 	std::lock_guard<std::mutex> lock(s_mutex);
+
+	// Discord restarted — it forgot our activity, so queue it again
+	if (s_resend.exchange(false) && s_hasPresence && !s_pendingClear) {
+		LOG_INFO("Discord reconnected — re-sending presence");
+		s_pendingUpdate = true;
+	}
 
 	// Flush pending clear
 	if (s_pendingClear && rateLimitRemaining() == 0) {
