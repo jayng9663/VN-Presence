@@ -43,13 +43,34 @@ Discord Rich Presence daemon for Visual Novels on Linux. Detects games launched 
 Every 5 seconds the daemon runs detection, debounces the result, checks the cache, queries VNDB if needed, and updates Discord.
 
 ```mermaid
-flowchart LR
-    A[Detection\nLutris or Steam] --> B[Debounce\nstable 2 polls]
-    B --> C{Cache\nlookup}
-    C -- hit + fresh --> E[Discord RPC]
-    C -- hit + expired --> D[VNDB search]
-    C -- miss --> D
-    D --> E
+flowchart TD
+    TICK([Every 5 s]) --> DET[Detect games<br>Lutris + Steam]
+    DET --> FILT[Drop ignored and<br>no-match titles]
+    FILT --> ANY{Any games?}
+    ANY -- no --> CLR[Clear presence]
+    ANY -- yes --> DEB{Stable for<br>2 polls?}
+    DEB -- yes --> CUR{Shown VN<br>still running?}
+    CUR -- no --> RES[Resolve candidates<br>earliest-started first]
+    RES -- VN found --> SET[Update Discord presence]
+    RES -- none --> CLR
+    DEB -- no --> WAIT([Wait for next poll])
+    CUR -- yes --> WAIT
+    SET --> WAIT
+    CLR --> WAIT
+```
+
+Each candidate is resolved like this, stopping at the first one that turns out to be a VN:
+
+```mermaid
+flowchart TD
+    C[Candidate] --> LOOK{cache.csv}
+    LOOK -- fresh hit --> USE[Use this VN]
+    LOOK -- expired hit --> REF["Refresh by stored VNDB id<br>(keeps old data if it fails)"] --> USE
+    LOOK -- "miss / alias" --> VNDB[Search VNDB<br>by title or alias]
+    LOOK -- SKIP --> NEXT[Try next candidate]
+    VNDB -- match --> SAVE[Save to cache.csv] --> USE
+    VNDB -- no match --> NM[Skip title<br>until restart] --> NEXT
+    VNDB -- network error --> BO["Retry after 30 s<br>doubling up to 10 min"] --> NEXT
 ```
 
 ---
@@ -58,16 +79,13 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    P[Scan /proc every 5s]
-    P --> L{lutris-wrapper\nin cmdline?}
-    L -- yes --> LN[Game name from\nwrapper args]
-    L -- no --> S{SteamAppId\nin environ?}
-    S -- yes --> SA[Read appmanifest_ID.acf\nfrom all library paths]
-    SA --> SN[Steam store name]
-    S -- no --> NONE[Nothing detected]
-    LN --> ST[Read starttime\nfrom /proc/pid/stat field 22]
+    P[Scan /proc every 5 s] --> L{lutris-wrapper<br>in cmdline?}
+    P --> S{SteamAppId<br>in environ?}
+    L -- yes --> LN[Game name from<br>wrapper args]
+    S -- "yes, not Proton<br>or a runtime" --> SN[Game name from<br>appmanifest_ID.acf]
+    LN --> ST[Read starttime<br>/proc/pid/stat field 22]
     SN --> ST
-    ST --> SORT[Sort candidates\nby starttime ascending]
+    ST --> SORT[Sort candidates<br>by starttime ascending]
 ```
 
 Lutris passes the game name explicitly as command-line arguments after `lutris-wrapper`, so the name is always exact. Steam injects `SteamAppId` as an environment variable into every game process — the daemon reads it from `/proc/<pid>/environ`, then finds the matching `.acf` file across all Steam library paths (including custom drives read from `libraryfolders.vdf`). Every distinct running AppID becomes its own candidate, so several Steam games running at once are all detected.
@@ -93,14 +111,14 @@ After all candidates are collected, the daemon reads **field 22** (`starttime`) 
 
 ```mermaid
 flowchart TD
-    Q[Search query] --> VN[POST /kana/vn]
-    VN --> SIM{Trigram similarity\n≥ 0.35 OR substring match?}
+    Q[Search query] --> VN[POST /kana/vn<br>top result by search rank]
+    VN --> SIM{Title or alt title<br>similarity ≥ 0.35?}
     SIM -- yes --> MATCH[VnInfo returned]
     SIM -- no --> REL[POST /kana/release]
-    REL --> FOUND{Release found?}
-    FOUND -- yes --> ID[Fetch parent VN\nby exact ID]
+    REL --> FOUND{Release linked<br>to a VN?}
+    FOUND -- yes --> ID[Fetch parent VN<br>by exact ID]
     ID --> MATCH
-    FOUND -- no --> NOMATCH[No match\nclear presence]
+    FOUND -- no --> NOMATCH[No match<br>try next candidate]
 ```
 
 Before the similarity check, full-width ASCII (`！２→!2`, `（→(`) is normalised to half-width so Japanese game names from Lutris match VNDB's stored titles. There is also a substring boost — if the query appears inside the returned title, the score is raised to at least 0.6, handling cases where the detected name is a short prefix of a long VNDB title.
@@ -113,10 +131,11 @@ VNDB results are stored persistently in `cache.csv`. On each cache hit the daemo
 
 ```mermaid
 flowchart TD
-    HIT[Cache hit] --> AGE{age > VNDB_CACHE_TTL?}
+    HIT[Cache hit] --> AGE{Older than<br>VNDB_CACHE_TTL?}
     AGE -- no --> USE[Use cached VnInfo]
-    AGE -- yes --> REQUERY[Re-query VNDB\nupdate cache.csv]
-    REQUERY --> USE
+    AGE -- yes --> REQUERY[Re-fetch from VNDB<br>by stored vndb_id]
+    REQUERY -- ok --> UPD[Update cache.csv<br>and cached_at] --> USE
+    REQUERY -- "failed (keep old data)" --> USE
 ```
 
 This means ratings, cover images, and release dates in the cache are automatically refreshed over time without any manual intervention. The log line when a re-query fires looks like:
@@ -131,14 +150,15 @@ This means ratings, cover images, and release dates in the cache are automatical
 
 ```mermaid
 flowchart TD
-    SRC{Source?}
-    SRC -- lutris --> LDB[Lutris DB\npga.db · hours]
-    SRC -- steam-appid --> VDF[Steam VDF\nlocalconfig.vdf · minutes]
-    LDB --> PT[playtime in seconds]
+    PROC["proc_start = btime<br>+ starttime ÷ CLK_TCK"] --> SRC{Source?}
+    SRC -- lutris --> LDB[Lutris pga.db<br>hours, by VN title]
+    SRC -- steam-appid --> VDF[Steam localconfig.vdf<br>minutes, by AppID]
+    LDB --> PT{Playtime<br>found?}
     VDF --> PT
-    PT --> PROC[proc_start_wall\n= btime + starttime ÷ CLK_TCK]
-    PROC --> TS[start_ts = proc_start_wall − playtime]
-    TS --> DISC[Discord: elapsed timer\n= session time + prior playtime]
+    PT -- yes --> TS["start_ts =<br>proc_start − playtime"]
+    PT -- no --> TS0["start_ts =<br>proc_start"]
+    TS --> D1[Timer shows<br>session + prior playtime]
+    TS0 --> D2[Timer shows<br>this session only]
 ```
 
 ---
